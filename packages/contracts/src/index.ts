@@ -1,0 +1,35 @@
+import { z } from 'zod';
+export { parseRepoRef } from './repo-ref';
+const text = z.string().trim().min(1).max(2000);
+const items = z.array(text).max(20);
+export const RepoRefSchema = z.object({ owner: z.string().regex(/^[a-z\d][a-z\d-]{0,38}$/i), name: z.string().regex(/^[\w.-]{1,100}$/).refine(v => v !== '.' && v !== '..') });
+export type RepoRef = z.infer<typeof RepoRefSchema>;
+export const ProfileSchema = z.object({ schemaVersion: z.literal(1), languages: items, knownConcepts: items, interests: items, gitExperience: z.enum(['new', 'basic', 'comfortable']), availableHours: z.number().min(0.5).max(100), preferences: z.string().max(1000) });
+export type ContributorProfile = z.infer<typeof ProfileSchema>;
+export const defaultProfile: ContributorProfile = { schemaVersion: 1, languages: [], knownConcepts: [], interests: [], gitExperience: 'basic', availableHours: 4, preferences: '' };
+export const SourceSchema = z.object({ id: text, label: text, url: z.string().url(), excerpt: z.string().max(16000) });
+export type Source = z.infer<typeof SourceSchema>;
+export const IssueSchema = z.object({ number: z.number().int().positive(), title: text, body: z.string().max(4000), labels: items, assignees: z.number().int().min(0), updatedAt: z.string(), state: z.enum(['open', 'closed']), competingWork: z.enum(['observed', 'not_checked', 'not_observed']) });
+export type Issue = z.infer<typeof IssueSchema>;
+export const EvidenceSchema = z.object({ repo: RepoRefSchema, description: z.string(), languages: items, topics: items, archived: z.boolean(), isPublic: z.boolean(), updatedAt: z.string(), checkedAt: z.string(), sources: z.array(SourceSchema).max(10), issues: z.array(IssueSchema).max(20), mergedPulls: z.number(), completeness: z.enum(['complete', 'partial']), limitations: items });
+export type Evidence = z.infer<typeof EvidenceSchema>;
+export const SummarySchema = z.object({ purpose: text, stack: items, contributionNotes: items, limitations: items, sourceIds: z.array(text).min(1).max(10) });
+export type Summary = z.infer<typeof SummarySchema>;
+export const MatchSchema = z.object({ repo: RepoRefSchema, purpose: text, readiness: z.enum(['ready_now', 'small_stretch', 'learn_first']), fitReasons: items, skillGaps: items, issueNumber: z.number().int().positive().nullable(), limitations: items, sourceIds: z.array(text).min(1).max(10), checkedAt: z.string() });
+export type Match = z.infer<typeof MatchSchema>;
+export const IntentSchema = z.object({ goal: text, languages: items, concepts: items, interests: items, availableHours: z.number().positive().max(100), hardConstraints: items, preferences: items, queries: z.array(z.string().max(200)).min(1).max(3) });
+export type SearchIntent = z.infer<typeof IntentSchema>;
+export const SearchResultSchema = z.object({ matches: z.array(MatchSchema).max(5), status: z.enum(['complete', 'partial', 'no_strong_match']), searchLimitations: items, intent: IntentSchema });
+export type SearchResult = z.infer<typeof SearchResultSchema>;
+export const LearningSchema = z.object({ gaps: items, steps: z.array(z.object({ title: text, practice: text, readinessCheck: text })).min(1).max(5), sourceIds: z.array(text).min(1).max(10) });
+export type LearningPath = z.infer<typeof LearningSchema>;
+export const AnswerSchema = z.object({ answer: text, sourceIds: z.array(text).min(1).max(10), limitation: z.string().max(1000) });
+export type RepoAnswer = z.infer<typeof AnswerSchema>;
+export const RequestSchema = z.object({ requestId: z.string().uuid(), repo: RepoRefSchema.optional(), request: z.string().trim().min(1).max(2000).optional(), profile: ProfileSchema.optional(), question: z.string().trim().min(1).max(1000).optional(), match: MatchSchema.optional() });
+export type ApiInput = z.infer<typeof RequestSchema>;
+export type ApiResponse<T> = { data: T; demo: boolean; requestId: string; sources: Source[]; checkedAt: string };
+export const repoKey = (repo: RepoRef) => `${repo.owner}/${repo.name}`.toLowerCase();
+export const repoUrl = (repo: RepoRef) => `https://github.com/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;
+export class AppError extends Error {
+  constructor(public code: string, message: string, public status = 400, public retryAfterSeconds?: number) { super(message); }
+}

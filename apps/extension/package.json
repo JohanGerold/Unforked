@@ -1,0 +1,4 @@
+{
+  "name": "@unforked/extension", "version": "0.1.0", "private": true, "type": "module",
+  "scripts": {"dev": "wxt --no-open", "build": "wxt build", "zip": "wxt zip", "setup:types": "wxt prepare"}
+}

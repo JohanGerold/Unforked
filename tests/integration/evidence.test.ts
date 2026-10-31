@@ -1,0 +1,42 @@
+import { expect, it } from 'vitest';
+import { GitHubClient } from '../../apps/api/src/github/client';
+import { fetchEvidence } from '../../apps/api/src/github/evidence';
+const ref = { owner: 'psf', name: 'requests' };
+const metadata = { private: false, archived: false, description: 'HTTP for humans', language: 'Python', topics: ['http'], pushed_at: '2026-10-01T00:00:00Z' };
+function github(metadataOverride = metadata) {
+  return new GitHubClient(undefined, async (input) => {
+    const path = new URL(String(input)).pathname;
+    if (path === '/repos/psf/requests') return Response.json(metadataOverride);
+    if (path.endsWith('/readme') || path.includes('CONTRIBUTING')) return Response.json({ message: 'not found' }, { status: 404 });
+    if (path.endsWith('/languages')) return Response.json({ Python: 100 });
+    return Response.json([]);
+  });
+}
+it('rejects private repositories before retrieving their contents', async () => {
+  await expect(fetchEvidence(ref, github({ ...metadata, private: true }))).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+});
+it('missing README and contribution instructions still return limited public evidence', async () => {
+  const data = await fetchEvidence(ref, github());
+  expect(data.repo).toEqual(ref); expect(data.completeness).toBe('partial'); expect(data.sources[0].url).toBe('https://github.com/psf/requests'); expect(data.languages).toEqual(['Python']);
+});
+it('surfaces rate-limit reset information', async () => {
+  const client = new GitHubClient(undefined, async () => Response.json({}, { status: 429, headers: { 'Retry-After': '30' } }));
+  await expect(client.get('/repos/psf/requests')).rejects.toMatchObject({ code: 'RATE_LIMITED', retryAfterSeconds: 30 });
+});
+it('stops before exhausting its retrieval budget', async () => {
+  const client = github(); client.remaining = 0;
+  await expect(fetchEvidence(ref, client)).rejects.toMatchObject({ code: 'BUDGET_EXHAUSTED' });
+});
+it('refuses arbitrary fetch URLs and unsafe API paths', async () => {
+  const client = github();
+  await expect(client.get('https://evil.test/data')).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+  await expect(client.get('/repos/../user')).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+});
+it('uses conditional requests and the cached body on 304', async () => {
+  let calls = 0;
+  const client = new GitHubClient(undefined, async (_url, options) => {
+    calls++; if (calls === 1) return Response.json({ ok: true }, { headers: { ETag: 'test-tag' } });
+    expect(new Headers(options?.headers).get('If-None-Match')).toBe('test-tag'); return new Response(null, { status: 304 });
+  });
+  expect(await client.get('/repos/a/b')).toEqual({ ok: true }); expect(await client.get('/repos/a/b', true)).toEqual({ ok: true });
+});
