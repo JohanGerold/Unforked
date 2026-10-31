@@ -25,7 +25,9 @@ export const LearningSchema = z.object({ gaps: items, steps: z.array(z.object({ 
 export type LearningPath = z.infer<typeof LearningSchema>;
 export const AnswerSchema = z.object({ answer: text, sourceIds: z.array(text).min(1).max(10), limitation: z.string().max(1000) });
 export type RepoAnswer = z.infer<typeof AnswerSchema>;
-export const RequestSchema = z.object({ requestId: z.string().uuid(), repo: RepoRefSchema.optional(), request: z.string().trim().min(1).max(2000).optional(), profile: ProfileSchema.optional(), question: z.string().trim().min(1).max(1000).optional(), match: MatchSchema.optional() });
+export const IssueCheckSchema = z.object({ repo: RepoRefSchema, issueNumber: z.number().int().positive(), available: z.boolean(), reasons: items, checkedAt: z.string() });
+export type IssueCheck = z.infer<typeof IssueCheckSchema>;
+export const RequestSchema = z.object({ requestId: z.string().uuid(), repo: RepoRefSchema.optional(), request: z.string().trim().min(1).max(2000).optional(), profile: ProfileSchema.optional(), question: z.string().trim().min(1).max(1000).optional(), match: MatchSchema.optional(), issueNumber: z.number().int().positive().optional() });
 export type ApiInput = z.infer<typeof RequestSchema>;
 export type ApiResponse<T> = { data: T; demo: boolean; requestId: string; sources: Source[]; checkedAt: string };
 export const repoKey = (repo: RepoRef) => `${repo.owner}/${repo.name}`.toLowerCase();

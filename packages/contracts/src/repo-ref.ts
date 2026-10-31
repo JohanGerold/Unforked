@@ -2,7 +2,7 @@ const reserved = new Set(['topics', 'settings', 'search', 'explore', 'marketplac
 export function parseRepoRef(input: string): { owner: string; name: string } | null {
   try {
     const raw = input.trim();
-    const url = new URL(raw.includes('://') ? raw : `https://github.com/${raw}`);
+    const url = new URL(raw.includes('://') ? raw : raw.startsWith('github.com/') ? `https://${raw}` : `https://github.com/${raw}`);
     if (url.protocol !== 'https:' || url.hostname !== 'github.com' || url.port || url.username || url.password) return null;
     const [owner, originalName] = url.pathname.split('/').filter(Boolean);
     const name = originalName?.replace(/\.git$/, '');

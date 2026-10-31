@@ -40,3 +40,15 @@ it('uses conditional requests and the cached body on 304', async () => {
   });
   expect(await client.get('/repos/a/b')).toEqual({ ok: true }); expect(await client.get('/repos/a/b', true)).toEqual({ ok: true });
 });
+it('refreshes issue state even while public documentation is cached', async () => {
+  let checks = 0;
+  const client = new GitHubClient(undefined, async input => {
+    const path = new URL(String(input)).pathname;
+    if (path === '/repos/psf/requests') return Response.json(metadata);
+    if (path.endsWith('/issues')) { checks++; return Response.json(checks === 1 ? [{ number: 1, title: 'Fix test', body: '', labels: [], assignees: [], updated_at: '2026-10-31', state: 'open' }] : []); }
+    if (path.endsWith('/languages')) return Response.json({ Python: 1 });
+    return Response.json([]);
+  });
+  expect((await fetchEvidence(ref, client)).issues).toHaveLength(1);
+  expect((await fetchEvidence(ref, client)).issues).toHaveLength(0);
+});

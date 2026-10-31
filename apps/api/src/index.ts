@@ -11,6 +11,7 @@ import type { Env } from './env';
 import { exchangeCode, logout, oauthCallback, requireSession, startAuth } from './auth/security';
 import { finishUsage, reserveUsage } from './usage/limits';
 import { configuredCostBound } from './ai/budget';
+import { checkIssue } from './github/issue-check';
 export const app = new Hono<{ Bindings: Env }>();
 app.use('*', async (c, next) => {
   const origin = c.req.header('Origin'); const local = c.env.ENVIRONMENT === 'development';
@@ -31,6 +32,14 @@ app.post('/v1/:action', async c => {
   const input = RequestSchema.safeParse(await c.req.json().catch(() => null));
   if (!input.success) throw new AppError('INVALID_INPUT', 'Check the repository, request, or profile and try again.');
   const action = c.req.param('action'); const data = input.data;
+  if (action === 'issue-check') {
+    if (!data.repo || !data.issueNumber) throw new AppError('INVALID_INPUT', 'An issue number and repository are required.');
+    const demo = c.env.MODE !== 'live';
+    const local = c.env.ENVIRONMENT === 'development' && ['127.0.0.1', 'localhost'].includes(new URL(c.req.url).hostname);
+    const session = !demo && !local ? await requireSession(c.req.raw, c.env) : null;
+    const result = demo ? { repo: data.repo, issueNumber: data.issueNumber, available: false, reasons: ['Demo mode does not verify live issue availability. Switch to a live backend first.'], checkedAt: new Date().toISOString() } : await checkIssue(data.repo, data.issueNumber, new GitHubClient(session?.githubToken || c.env.GITHUB_TOKEN, fetch, c.req.raw.signal));
+    return c.json({ data: result, demo, requestId: data.requestId, sources: [], checkedAt: result.checkedAt });
+  }
   if (!['summary', 'search', 'learning-path', 'repo-question'].includes(action)) throw new AppError('NOT_FOUND', 'Unknown action.', 404);
   if (action === 'search' && !data.request || action !== 'search' && !data.repo || action === 'repo-question' && !data.question) throw new AppError('INVALID_INPUT', 'This action is missing a repository or question.');
   const demo = c.env.MODE !== 'live'; let result: unknown; let evidence: Evidence[];

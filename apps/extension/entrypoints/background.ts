@@ -13,7 +13,7 @@ export default defineBackground(() => {
     if (!repo) return;
     // Open synchronously in the user gesture, then persist context for a newly mounted panel.
     void chrome.sidePanel.open({ tabId: tab.id });
-    void chrome.storage.session.set({ selectedRepo: repo, selectedTab: tab.id, selectionNonce: crypto.randomUUID() });
+    void chrome.storage.session.set({ selectedRepo: repo, selectedTab: tab.id, selectedPageUrl: info.pageUrl || tab.url, selectionCreatedAt: Date.now(), selectionNonce: crypto.randomUUID() });
   });
   chrome.commands.onCommand.addListener(async command => {
     if (command !== 'circle-repository') return;
@@ -26,6 +26,6 @@ export default defineBackground(() => {
     if (sender.id !== chrome.runtime.id || !sender.tab?.id || !sender.tab.url?.startsWith('https://github.com/') || message.type !== 'UNFORKED_SELECTED') return;
     const repo = parseRepoRef(`${message.repo?.owner}/${message.repo?.name}`); if (!repo) return;
     void chrome.sidePanel.open({ tabId: sender.tab.id });
-    void chrome.storage.session.set({ selectedRepo: repo, selectedTab: sender.tab.id, selectionNonce: crypto.randomUUID() });
+    void chrome.storage.session.set({ selectedRepo: repo, selectedTab: sender.tab.id, selectedPageUrl: sender.tab.url, selectionCreatedAt: Date.now(), selectionNonce: crypto.randomUUID() });
   });
 });

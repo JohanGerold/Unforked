@@ -4,7 +4,7 @@ export class GitHubClient {
   remaining = 80;
   constructor(private token?: string, private fetcher: typeof fetch = fetch, private signal?: AbortSignal) {}
   async get(path: string, refresh = false): Promise<any> {
-    if (!/^\/(?:repos\/[\w-]+\/[\w.-]+(?:\/(?:readme|languages|contents(?:\/[\w./-]+)?|issues|pulls))?|search\/repositories)(?:\?[^#]*)?$/.test(path) || path.includes('..') || path.includes('\\')) throw new AppError('INVALID_INPUT', 'Unsupported GitHub resource.');
+    if (!/^\/(?:repos\/[\w-]+\/[\w.-]+(?:\/(?:readme|languages|contents(?:\/[\w./-]+)?|issues(?:\/\d+)?|pulls))?|search\/repositories)(?:\?[^#]*)?$/.test(path) || path.includes('..') || path.includes('\\')) throw new AppError('INVALID_INPUT', 'Unsupported GitHub resource.');
     // Authenticated caches are request-local: never share token-scoped response data.
     const store = this.token || this.fetcher !== fetch ? this.privateCache : cache;
     const cached = store.get(path);

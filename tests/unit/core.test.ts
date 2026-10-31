@@ -11,6 +11,7 @@ describe('repository identity', () => {
   it('canonicalizes nested repository links without preserving queries', () => {
     expect(parseRepoRef('https://github.com/psf/requests/issues/12?x=y#top')).toEqual({ owner: 'psf', name: 'requests' });
     expect(parseRepoRef('psf/requests.git')).toEqual({ owner: 'psf', name: 'requests' });
+    expect(parseRepoRef('github.com/psf/requests')).toEqual({ owner: 'psf', name: 'requests' });
   });
 });
 describe('local profile and saves', () => {

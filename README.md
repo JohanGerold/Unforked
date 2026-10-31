@@ -58,6 +58,7 @@ Keys never go in the extension, public `.env` variables, or Git. Do not enter pr
 - Circle mode, context-menu explanation, repository URL input, and the `Alt+Shift+U` shortcut.
 - Local saved shortlist with demo provenance and source references.
 - Cancel/retry, rate-limit errors, stale-response prevention, and keyboard-accessible controls.
+- Visible recommendation dates and limitations, plus fresh issue checks before opening suggested work.
 - Hosted-backend authentication, encrypted GitHub tokens, PKCE, one-time exchanges, and atomic usage reservations.
 
 Repository summaries inspect documentation, root file names and bounded activity samples. They do not inspect all implementation code or guarantee contribution acceptance. Issue availability must be rechecked on GitHub.
@@ -90,3 +91,5 @@ See [hosted setup](docs/hosted-setup.md) before deploying. Production live route
 ## Project map
 
 `apps/extension` contains the sidebar and GitHub overlay. `apps/api` contains the Hono/Workers backend. `packages/contracts` contains versioned schemas and canonical repository identities. `tests` contains offline, browser, and optional live checks. The implementation plan and evaluation checklist are under `docs`.
+
+Implementation decisions, independent-review fixes, verification evidence and remaining limits are recorded in [build notes](docs/build-notes.md).
