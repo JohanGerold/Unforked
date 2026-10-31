@@ -1,4 +1,7 @@
-import { MatchSchema, ProfileSchema, repoKey, type Match, type RepoRef } from '@unforked/contracts';
+import { MatchSchema, ProfileSchema, SourceSchema, repoKey, type Match, type RepoRef, type Source } from '@unforked/contracts';
+import { z } from 'zod';
+const SavedSchema = MatchSchema.extend({ savedSources: SourceSchema.array().max(10).default([]), demo: z.boolean().default(false) });
+export type SavedMatch = z.infer<typeof SavedSchema>;
 export interface StorageAdapter { get(key: string): Promise<unknown>; set(key: string, value: unknown): Promise<void>; remove(key: string): Promise<void> }
 export function createLocalStore(adapter: StorageAdapter) {
   let queue = Promise.resolve();
@@ -6,8 +9,8 @@ export function createLocalStore(adapter: StorageAdapter) {
   const store = {
     async loadProfile() { const result = ProfileSchema.safeParse(await adapter.get('profile')); return result.success ? result.data : null; },
     async saveProfile(profile: unknown) { await adapter.set('profile', ProfileSchema.parse(profile)); },
-    async listSaved(): Promise<Match[]> { const result = MatchSchema.array().max(100).safeParse(await adapter.get('saved')); return result.success ? result.data : []; },
-    saveRepo(card: Match) { return enqueue(async () => { const saved = await store.listSaved(); await adapter.set('saved', [MatchSchema.parse(card), ...saved.filter(c => repoKey(c.repo) !== repoKey(card.repo))].slice(0, 100)); }); },
+    async listSaved(): Promise<SavedMatch[]> { const result = SavedSchema.array().max(100).safeParse(await adapter.get('saved')); return result.success ? result.data : []; },
+    saveRepo(card: Match, sources: Source[] = [], demo = false) { return enqueue(async () => { const saved = await store.listSaved(); const entry = SavedSchema.parse({ ...card, savedSources: sources.filter(s => card.sourceIds.includes(s.id)), demo }); await adapter.set('saved', [entry, ...saved.filter(c => repoKey(c.repo) !== repoKey(card.repo))].slice(0, 100)); }); },
     removeRepo(repo: RepoRef) { return enqueue(async () => { await adapter.set('saved', (await store.listSaved()).filter(c => repoKey(c.repo) !== repoKey(repo))); }); },
     async clear() { await queue; await adapter.remove('profile'); await adapter.remove('saved'); }
   };

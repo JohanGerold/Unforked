@@ -1,0 +1,6 @@
+ENVIRONMENT=development
+MODE=demo
+# To enable live mode, set MODE=live and configure a current model identifier.
+# GOOGLE_GENERATIVE_AI_API_KEY=your-key
+# AI_MODEL=choose-a-current-google-model
+# GITHUB_TOKEN=optional-token-for-public-read-access
