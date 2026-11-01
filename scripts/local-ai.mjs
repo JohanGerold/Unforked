@@ -30,6 +30,25 @@ export function gatewaySecrets(origin, key) {
   return JSON.stringify({ LOCAL_AI_ORIGIN: origin, LOCAL_AI_KEY: validateLocalKey(key) });
 }
 export function redact(text, key) { return String(text).split(key).join('[redacted]'); }
+export function createProcessMonitor() {
+  const controller = new AbortController(); const children = []; let ended = false; let failure = null; let finish;
+  const closed = new Promise(done => { finish = done; });
+  const end = error => { if (ended) return; ended = true; failure = error; controller.abort(); finish(error); };
+  return {
+    signal: controller.signal, closed,
+    watch(child) {
+      if (ended) { child.kill(); throw failure || new Error('Sharing stopped.'); }
+      children.push(child);
+      child.once('error', () => end(new Error('A local AI process could not start; sharing stopped.')));
+      child.once('exit', () => end(new Error('A local AI process stopped; sharing is offline.')));
+    },
+    async race(work) {
+      if (ended) throw failure || new Error('Sharing stopped.');
+      return Promise.race([work, closed.then(error => { throw error || new Error('Sharing stopped.'); })]);
+    },
+    stop() { end(null); for (const child of children) child.kill(); }
+  };
+}
 const delay = ms => new Promise(done => setTimeout(done, ms));
 // Some home DNS resolvers return NXDOMAIN for new Quick Tunnel names. Only this
 // launcher's TLS health probe can fall back to public DNS; OS settings stay intact.
@@ -43,11 +62,12 @@ export function healthLookup(hostname, options, callback) {
     } catch { callback(error); }
   });
 }
-async function healthResponse(origin, key) {
-  if (origin.startsWith('http://127.0.0.1:')) return fetch(`${origin}/health`, { headers: { Authorization: `Bearer ${key}` }, redirect: 'manual', signal: AbortSignal.timeout(4000) });
+async function healthResponse(origin, key, signal) {
+  const timeout = AbortSignal.timeout(5000); const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  if (origin.startsWith('http://127.0.0.1:')) return fetch(`${origin}/health`, { headers: { Authorization: `Bearer ${key}` }, redirect: 'manual', signal: combined });
   gatewaySecrets(origin, key);
   return new Promise((done, reject) => {
-    const request = httpsRequest(`${origin}/health`, { headers: { Authorization: `Bearer ${key}` }, lookup: healthLookup, signal: AbortSignal.timeout(5000) }, response => {
+    const request = httpsRequest(`${origin}/health`, { headers: { Authorization: `Bearer ${key}` }, lookup: healthLookup, signal: combined }, response => {
       const chunks = []; let size = 0;
       response.on('data', chunk => { size += chunk.length; if (size > 4096) request.destroy(new Error('Health response too large')); else chunks.push(chunk); });
       response.on('end', () => done(new Response(Buffer.concat(chunks), { status: response.statusCode })));
@@ -83,23 +103,25 @@ async function installTools() {
     console.log(`Verified official cloudflared ${release.tag_name}.`);
   } finally { await rm(temp, { force: true }); }
 }
-async function ready(origin, key, attempts = 1) {
+async function ready(origin, key, attempts = 1, signal) {
   let failure = 'No response';
   for (let index = 0; index < attempts; index++) {
+    signal?.throwIfAborted();
     try {
-      const response = await healthResponse(origin, key);
+      const response = await healthResponse(origin, key, signal);
       const data = await response.json();
       if (response.ok && data.ready === true && data.model === 'qwen3.5:4b') return;
       failure = `HTTP ${response.status}`;
-    } catch (error) { const code = error.cause?.code || error.code; failure = /^[A-Z_0-9]{1,60}$/.test(code || '') ? code : error.name; }
+    } catch (error) { signal?.throwIfAborted(); const code = error.cause?.code || error.code; failure = /^[A-Z_0-9]{1,60}$/.test(code || '') ? code : error.name; }
     if (index + 1 < attempts) await delay(1000);
   }
   throw new Error(`The authenticated local AI health check failed at ${origin} (${failure}). Start Ollama and check the tunnel connection.`);
 }
-async function sync(origin, key) {
-  const payload = gatewaySecrets(origin, key); await ready(origin, key);
+async function sync(origin, key, signal) {
+  const payload = gatewaySecrets(origin, key); await ready(origin, key, 1, signal);
+  signal?.throwIfAborted();
   await new Promise((done, reject) => {
-    const child = spawn(process.execPath, [resolve(root, 'node_modules/wrangler/bin/wrangler.js'), 'secret', 'bulk', '--config', 'apps/api/wrangler.beta.jsonc'], { cwd: root, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, [resolve(root, 'node_modules/wrangler/bin/wrangler.js'), 'secret', 'bulk', '--config', 'apps/api/wrangler.beta.jsonc'], { cwd: root, windowsHide: true, signal, stdio: ['pipe', 'pipe', 'pipe'] });
     let output = ''; const collect = chunk => { output = (output + redact(chunk.toString(), key)).slice(-12000); };
     child.stdout.on('data', collect); child.stderr.on('data', collect); child.on('error', reject);
     child.on('close', code => code === 0 ? done() : reject(new Error(`Worker secret sync failed. ${redact(output, key)}`)));
@@ -112,33 +134,31 @@ async function share(noSync) {
   // Never adopt an unrelated listener: this launcher owns the processes it stops.
   try { await fetch('http://127.0.0.1:11435/health', { signal: AbortSignal.timeout(1000) }); throw new Error('Port 11435 is already occupied. Stop the previous gateway first.'); }
   catch (error) { if (error.message.startsWith('Port ')) throw error; }
-  const children = []; let stopped = false;
-  const stop = () => { if (stopped) return; stopped = true; for (const child of children) child.kill(); };
+  const monitor = createProcessMonitor();
+  const stop = () => monitor.stop();
   process.once('SIGINT', stop); process.once('SIGTERM', stop);
   try {
-    const gateway = spawn(process.execPath, [resolve(root, 'apps/local-ai/dist/server.js')], { cwd: root, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }); children.push(gateway);
-    let gatewayError = ''; gateway.stderr.on('data', chunk => { gatewayError = redact(chunk.toString(), key).slice(-2000); });
-    const gatewayExit = new Promise((_, reject) => { gateway.once('error', reject); gateway.once('exit', () => reject(new Error(`Gateway stopped. ${gatewayError}`))); });
-    await Promise.race([ready('http://127.0.0.1:11435', key, 15), gatewayExit]);
-    const tunnel = spawn(tunnelExe, ['tunnel', '--no-autoupdate', '--protocol', 'http2', '--url', 'http://127.0.0.1:11435'], { cwd: root, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }); children.push(tunnel);
+    const gateway = spawn(process.execPath, [resolve(root, 'apps/local-ai/dist/server.js')], { cwd: root, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }); monitor.watch(gateway);
+    gateway.stderr.resume(); gateway.stdout.resume();
+    await monitor.race(ready('http://127.0.0.1:11435', key, 15, monitor.signal));
+    const tunnel = spawn(tunnelExe, ['tunnel', '--no-autoupdate', '--protocol', 'http2', '--url', 'http://127.0.0.1:11435'], { cwd: root, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }); monitor.watch(tunnel);
     let tunnelLog = '';
-    const origin = await Promise.race([new Promise((done, reject) => {
+    const origin = await monitor.race(new Promise((done, reject) => {
       const timer = setTimeout(() => reject(new Error('Quick Tunnel did not start within 45 seconds.')), 45000);
       const collect = chunk => { tunnelLog = (tunnelLog + chunk.toString()).slice(-16000); const url = parseTunnelOrigin(tunnelLog); if (url) { clearTimeout(timer); done(url); } };
       tunnel.stdout.on('data', collect); tunnel.stderr.on('data', collect);
       tunnel.once('error', error => { clearTimeout(timer); reject(error); });
       tunnel.once('exit', () => { clearTimeout(timer); reject(new Error('Quick Tunnel stopped before connecting.')); });
-    }), gatewayExit]);
+    }));
     await mkdir(dirname(runtimeFile), { recursive: true });
     await writeFile(resolve(dirname(runtimeFile), 'tunnel-start.log'), redact(tunnelLog, key));
-    await ready(origin, key, 20);
+    await monitor.race(ready(origin, key, 20, monitor.signal));
     await mkdir(dirname(runtimeFile), { recursive: true });
     await writeFile(runtimeFile, JSON.stringify({ origin, startedAt: new Date().toISOString(), gatewayPid: gateway.pid, tunnelPid: tunnel.pid }, null, 2));
-    if (!noSync) await sync(origin, key);
+    if (!noSync) await monitor.race(sync(origin, key, monitor.signal));
+    monitor.signal.throwIfAborted();
     console.log(`Local AI is shared through ${origin}\nKeep this terminal and Ollama running. Ctrl+C stops sharing. No automatic cloud fallback.`);
-    await new Promise((done, reject) => {
-      for (const child of children) child.once('exit', () => stopped ? done() : reject(new Error('A local AI process stopped; sharing is offline.')));
-    });
+    const error = await monitor.closed; if (error) throw error;
   } finally { stop(); process.removeListener('SIGINT', stop); process.removeListener('SIGTERM', stop); }
 }
 async function main() {

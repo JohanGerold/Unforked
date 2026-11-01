@@ -4,7 +4,7 @@ MODE=demo
 # GOOGLE_GENERATIVE_AI_API_KEY=your-key
 # AI_MODEL=choose-a-current-google-model
 # GITHUB_TOKEN=optional-token-for-public-read-access
-# AI_PROVIDER=gemini
+AI_PROVIDER=gemini
 # For local-only development, copy the gateway's ignored credential privately:
 # AI_PROVIDER=ollama
 # LOCAL_AI_ORIGIN=http://127.0.0.1:11435

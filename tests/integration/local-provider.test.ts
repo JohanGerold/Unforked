@@ -17,6 +17,9 @@ it('missing local configuration and unknown providers fail closed', () => {
   expect(() => createConfiguredModel({ ...env, LOCAL_AI_ORIGIN: 'http://outside.example.test' })).toThrow();
   expect(() => createConfiguredModel({ ...env, AI_PROVIDER: 'unknown' })).toThrow();
 });
+it('missing or empty provider selection cannot invoke the preserved Google provider', () => {
+  for (const AI_PROVIDER of [undefined, '']) expect(() => createConfiguredModel({ ...env, AI_PROVIDER })).toThrow('selection');
+});
 it('offline, busy, redirects and invalid outputs never fall back to Google', async () => {
   for (const fixture of [new Response(null, { status: 302, headers: { Location: 'https://outside.example.test' } }), Response.json({ error: { code: 'LOCAL_AI_BUSY' } }, { status: 429 }), Response.json({ data: { purpose: 'no identity' } })]) {
     let calls = 0;

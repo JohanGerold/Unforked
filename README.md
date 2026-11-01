@@ -39,6 +39,7 @@ Edit the git-ignored file `apps/api/.dev.vars`:
 ```dotenv
 ENVIRONMENT=development
 MODE=live
+AI_PROVIDER=gemini
 GOOGLE_GENERATIVE_AI_API_KEY=your-own-key
 AI_MODEL=a-current-google-text-model
 # Optional: improve GitHub public-read rate limits.

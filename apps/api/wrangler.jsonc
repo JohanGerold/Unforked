@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "unforked-api", "main": "src/index.ts", "compatibility_date": "2026-10-30", "compatibility_flags": ["nodejs_compat"],
-  "vars": { "MODE": "demo", "ENVIRONMENT": "production" },
+  "vars": { "MODE": "demo", "ENVIRONMENT": "production", "AI_PROVIDER": "gemini" },
   "observability": { "enabled": false }
 }

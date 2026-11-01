@@ -3,7 +3,7 @@ import { reserveUsage } from '../../apps/api/src/usage/limits';
 import { database } from '../helpers/database';
 import type { Env } from '../../apps/api/src/env';
 it('local action units remain separate from the Gemini reference-cost ceiling', async () => {
-  const base: Env = { DB: database(), MONTHLY_BUDGET_MICRODOLLARS: '50', ACTION_RESERVATION_MICRODOLLARS: '50', DAILY_LIMIT: '10' };
+  const base: Env = { AI_PROVIDER: 'gemini', DB: database(), MONTHLY_BUDGET_MICRODOLLARS: '50', ACTION_RESERVATION_MICRODOLLARS: '50', DAILY_LIMIT: '10' };
   await reserveUsage(base, 'owner', crypto.randomUUID());
   await reserveUsage({ ...base, AI_PROVIDER: 'ollama', LOCAL_MONTHLY_ACTION_LIMIT: '2' } as Env, 'owner', crypto.randomUUID());
   await reserveUsage({ ...base, AI_PROVIDER: 'ollama', LOCAL_MONTHLY_ACTION_LIMIT: '2' } as Env, 'friend', crypto.randomUUID());

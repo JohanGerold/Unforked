@@ -3,7 +3,7 @@ import { expect, it } from 'vitest';
 import { reserveUsage } from '../../apps/api/src/usage/limits';
 import { hash, seal, unseal, requireSession, exchangeCode, logout, oauthCallback } from '../../apps/api/src/auth/security';
 import type { Env } from '../../apps/api/src/env';
-const env = (): Env => ({ DB: database(), TOKEN_ENCRYPTION_KEY: 'a'.repeat(64), EXTENSION_ID: 'a'.repeat(32), GITHUB_CLIENT_ID: 'client', GITHUB_CLIENT_SECRET: 'secret', API_ORIGIN: 'https://api.example.test', MONTHLY_BUDGET_MICRODOLLARS: '100', ACTION_RESERVATION_MICRODOLLARS: '60', DAILY_LIMIT: '10' });
+const env = (): Env => ({ AI_PROVIDER: 'gemini', DB: database(), TOKEN_ENCRYPTION_KEY: 'a'.repeat(64), EXTENSION_ID: 'a'.repeat(32), GITHUB_CLIENT_ID: 'client', GITHUB_CLIENT_SECRET: 'secret', API_ORIGIN: 'https://api.example.test', MONTHLY_BUDGET_MICRODOLLARS: '100', ACTION_RESERVATION_MICRODOLLARS: '60', DAILY_LIMIT: '10' });
 it('concurrent reservations cannot exceed the global budget', async () => {
   const config = env(); const results = await Promise.allSettled([reserveUsage(config, 'u1', crypto.randomUUID()), reserveUsage(config, 'u2', crypto.randomUUID())]);
   expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
