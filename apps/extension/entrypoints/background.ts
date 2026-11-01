@@ -20,7 +20,7 @@ export default defineBackground(() => {
     const repo = parseRepoRef(info.linkUrl || info.pageUrl || '');
     if (!repo) return;
     // Open synchronously in the user gesture, then persist context for a newly mounted panel.
-    void chrome.sidePanel.open({ tabId: tab.id });
+    void chrome.sidePanel.open({ tabId: tab.id }).catch(() => {});
     void chrome.storage.session.set({ selectedImage: null, selectedRepo: repo, selectedTab: tab.id, selectedPageUrl: info.pageUrl || tab.url, selectionCreatedAt: Date.now(), selectionNonce: crypto.randomUUID() });
   });
   chrome.commands.onCommand.addListener((command, tab) => { void circleCommand(command, tab).catch(() => {}); });
@@ -46,7 +46,8 @@ export default defineBackground(() => {
     }
     if (message.type !== 'UNFORKED_SELECTED') return;
     const repo = parseRepoRef(`${message.repo?.owner}/${message.repo?.name}`); if (!repo) return;
-    void chrome.sidePanel.open({ tabId: sender.tab.id });
+    // The toolbar/command opens the panel before drawing. A content-script
+    // selection message may arrive after Chrome's user gesture has expired.
     void chrome.storage.session.set({ selectedImage: null, selectedRepo: repo, selectedTab: sender.tab.id, selectedPageUrl: sender.tab.url, selectionCreatedAt: Date.now(), selectionNonce: crypto.randomUUID() });
   });
 });

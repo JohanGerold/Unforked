@@ -9,7 +9,9 @@ test('installed extension registers its sidebar and selects a real GitHub link',
     const cdp = await context.browser()!.newBrowserCDPSession();
     await cdp.send('Extensions.loadUnpacked', { path: extension });
     const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', { timeout: 8000 });
+    await worker.evaluate(() => { (globalThis as any).__unforkedUnhandled = []; globalThis.addEventListener('unhandledrejection', event => { (globalThis as any).__unforkedUnhandled.push(String(event.reason?.message || 'Unhandled rejection')); }); });
     await expect.poll(() => worker.evaluate(async () => (await chrome.sidePanel.getPanelBehavior()).openPanelOnActionClick)).toBe(true);
+    await worker.evaluate(() => { chrome.sidePanel.open = async () => { throw new Error('`sidePanel.open()` may only be called in response to a user gesture.'); }; });
     const github = await context.newPage();
     await github.route('https://github.com/psf/requests', route => route.fulfill({ contentType: 'text/html', body: '<html><head><title>GitHub fixture</title></head><body style="padding:80px"><a href="https://github.com/psf/requests" style="display:block;width:180px;height:40px">psf / requests</a></body></html>' }));
     await github.goto('https://github.com/psf/requests');
@@ -18,6 +20,10 @@ test('installed extension registers its sidebar and selects a real GitHub link',
     await expect(github.locator('#unforked-circle-overlay')).toBeVisible();
     await github.mouse.move(65, 65); await github.mouse.down(); await github.mouse.move(300, 65, { steps: 10 }); await github.mouse.move(300, 150, { steps: 10 }); await github.mouse.move(65, 150, { steps: 10 }); await github.mouse.move(65, 65, { steps: 10 }); await github.mouse.up();
     await expect.poll(() => worker.evaluate(async () => (await chrome.storage.session.get('selectedRepo')).selectedRepo)).toEqual({ owner: 'psf', name: 'requests' });
+    // Force the reported Chrome rejection across versions, then allow its event
+    // loop turn to finish before checking that selection produced no error.
+    await worker.evaluate(() => new Promise(done => setTimeout(done, 100)));
+    expect(await worker.evaluate(() => (globalThis as any).__unforkedUnhandled)).toEqual([]);
     await expect(github.locator('#unforked-circle-overlay')).toHaveCount(0);
     await worker.evaluate(async id => { await chrome.tabs.sendMessage(id, { type: 'UNFORKED_CIRCLE' }); }, tabId);
     await github.keyboard.press('Escape'); await expect(github.locator('#unforked-circle-overlay')).toHaveCount(0);

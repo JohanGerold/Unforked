@@ -10,3 +10,8 @@ it('a panel-opening rejection does not swallow the drawing command', async () =>
   await circleCommand('circle-repository', { id: 1, url: 'https://github.com/psf/requests' }, { open: async () => { throw new Error('no panel gesture'); }, current: async () => undefined, start: async () => { drawn = true; } });
   expect(drawn).toBe(true);
 });
+it('does not try to open the sidebar after asynchronously resolving a missing command tab', async () => {
+  const events: string[] = [];
+  await circleCommand('circle-repository', undefined, { open: async () => { events.push('open'); }, current: async () => ({ id: 1, url: 'https://github.com/psf/requests' }), start: async () => { events.push('draw'); } });
+  expect(events).toEqual(['draw']);
+});

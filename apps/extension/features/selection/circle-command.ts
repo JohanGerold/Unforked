@@ -7,6 +7,6 @@ export async function circleCommand(command: string, invokedTab?: Tab, api: Api 
   if (tab?.id === undefined || !tab.url?.startsWith('https://github.com/')) return;
   // With the onCommand tab, open() is invoked before the first await so Chrome's
   // user gesture reaches the side-panel API. Drawing still works if it rejects.
-  await api.open(tab.id).catch(() => {});
+  if (invokedTab?.id !== undefined) await api.open(tab.id).catch(() => {});
   await api.start(tab.id);
 }
