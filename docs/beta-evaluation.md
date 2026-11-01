@@ -47,3 +47,13 @@ The owner pasted the rendered three-step learning path for codepiyusss/open_sour
 This single learning-path sample is substantially supported by repository documentation. It is not a completed 20-prompt relevance evaluation. Removal of xfail must apply only to the test for the issue actually fixed. The README also contains a request aimed at AI tools to star the repository; the displayed path did not include that instruction, and verification did not perform any GitHub write. This is one observed boundary case, not a general prompt-injection robustness claim.
 
 Owner-confirmed core journeys so far: real GitHub sign-in, live recommendation and displayed learning path. Still to verify on the owner's real GitHub page: circle-to-summary, follow-up questions and saved/reopened provenance; also remaining server acceptance/CPU/retention/rollback checks before tester invitations.
+
+## Local AI feasibility — owner PC
+
+The owner wants their PC to serve AI generation for friends. Read-only inventory confirmed an NVIDIA GeForce RTX4060 LaptopGPU,8188MiBVRAM, initially7099MiBfree,driver617.42. Ollama0.35.1 and qwen3:8b(5.2GBdownload) were already installed. System RAM could not be read through the sandbox CIM API; no zero-RAM inference is made.
+
+A bounded local-only smoke request used qwen3:8b, think:false,num_ctx4096,num_predict96 and a tiny JSON schema. It passed JSON/citation validation on a supplied public example:45.2secondswall,22.3secondsload,59inputtokens,32outputtokens,3.6outputtokens/sec. Ollamaps reported100%GPU,5.6GBresident,4096context. The model was then unloaded to releaseVRAM. No new model download or hosted AI call was made by this test. This small cold-run result is not a full Unforked quality/concurrency benchmark.
+
+A smaller local candidate (for example the currently listed qwen3.5:4b) and warm-run benchmark are recommended before shared deployment. Shared architecture proposal: retain hosted GitHub/auth/invitation handling; send bounded generation jobs to an authenticated local gateway over a protected connection; keep raw Ollama onloopback; one GPU generation at a time with a boundedqueue/offline status. A temporary QuickTunnel can support development; stable public use needs a stable endpoint. Do not silently fall back to cloud generation. Current production remains Gemini; no local-provider integration, tunnel or friend invitation was created by this feasibility test.
+
+Sources: https://docs.ollama.com/gpu ; https://ollama.com/library/qwen3.5:4b ; https://docs.ollama.com/capabilities/structured-outputs ; https://docs.ollama.com/faq ; https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/ .
