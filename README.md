@@ -58,7 +58,7 @@ For the shared laptop provider, see [local AI setup and daily use](docs/local-ai
 - Bounded repository search; explained fit, skill gaps, and verified issue identities.
 - Documentation-based summaries and follow-up questions, with sources and limitations.
 - Project knowledge roadmaps grouped by language, concepts and libraries, based on dependency manifests and sampled source files; profile-listed concepts are marked without assuming unlisted knowledge is missing.
-- Nearby alternatives and task-oriented learning steps when strong matches are absent.
+- Nearby alternatives and knowledge roadmaps when strong matches are absent.
 - Circle mode, context-menu explanation, repository URL input, and the `Alt+Shift+U` shortcut.
 - Local saved shortlist with demo provenance and source references.
 - Cancel/retry, rate-limit errors, stale-response prevention, and keyboard-accessible controls.

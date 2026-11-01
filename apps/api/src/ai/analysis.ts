@@ -44,7 +44,7 @@ export async function buildLearningPath(request: string, profile: ContributorPro
   }
   const verifiedIds = [...new Set(groups.flatMap(group => group.sourceIds))];
   if (!verifiedIds.length) verifiedIds.push(evidence.sources[0].id);
-  return LearningSchema.parse({ ...result, limitations: [...new Set([...result.limitations, ...evidence.limitations])].slice(0, 5), sourceIds: verifiedIds.slice(0, 10) });
+  return LearningSchema.parse({ ...result, limitations: [...new Set([...evidence.limitations, ...result.limitations])].slice(0, 5), sourceIds: verifiedIds.slice(0, 10) });
 }
 export async function answerQuestion(question: string, evidence: Evidence, model: Model) {
   const answer = await checked(AnswerSchema, `Answer the repository question only from evidence. State missing evidence. Question: ${question}. Evidence: ${JSON.stringify(compactEvidence(evidence))}`, model);

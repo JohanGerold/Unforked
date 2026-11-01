@@ -29,3 +29,9 @@ it('shrinks sampled excerpts to the remaining input budget before generation', a
     expect(generationInputBound(new TextEncoder().encode(prompt).byteLength, new TextEncoder().encode(JSON.stringify(z.toJSONSchema(schema))).byteLength)).toBeLessThanOrEqual(20000); return roadmap;
   } });
 });
+it('keeps retrieval failures visible even when the model fills every limitation slot', async () => {
+  const failure = 'No source-code sample could be read; requirements are limited to documentation.';
+  const limited = { ...evidence, limitations: [failure] };
+  const result = await buildLearningPath('Learn', defaultProfile, limited, { generate: async () => ({ ...roadmap, limitations: Array.from({ length: 5 }, (_, index) => `Model uncertainty ${index}`) }) });
+  expect(result.limitations).toContain(failure); expect(result.limitations.length).toBeLessThanOrEqual(5);
+});

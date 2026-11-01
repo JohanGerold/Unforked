@@ -14,6 +14,8 @@ Unforked helps you find a realistic way into open source on GitHub.
 
 Describe what you know and what you want to work on. Explore a short list of projects with reasons they fit, knowledge gaps, and starting issues when availability can be verified. Open a repository for a sourced explanation, or circle its title or link on GitHub. Save interesting projects and ask for a learning path toward your next contribution.
 
+Learning paths show the languages, language concepts and relevant library knowledge for the selected project, based on public dependency manifests and sampled source files. Core and area-specific requirements are distinguished; evidence limits remain visible. This is a knowledge roadmap rather than an automated contribution checklist.
+
 Open the sidebar from the toolbar. Add your skills, describe a goal, and explore the results. You can also enter a repository URL or use the GitHub link context menu.
 
 The current beta requires an invited GitHub account for live recommendations. Usage allowances apply. Suggestions are estimates, not guarantees of issue availability or contribution acceptance.
