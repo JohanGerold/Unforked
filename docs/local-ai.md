@@ -25,6 +25,14 @@ The beta owner has 100 local actions per UTC day; invited friends have 20 each. 
 
 The temporary Quick Tunnel has no uptime guarantee. It is suitable for this owner pilot and supervised friend testing. A stable named tunnel/domain and a shared-load check are prerequisites for dependable public availability. See [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).
 
+## Circle image explanations
+
+The installed Qwen3.5 4B also accepts image input; no separate model/key is needed. Reload the updated extension and refresh an open GitHub tab. Click Unforked's toolbar icon to grant Chrome's temporary capture access, then use Circle or Alt+Shift+U on a public repository page. Review the crop, optionally enter a question, then choose Explain image. The original repository-link mode is available through its separate text button.
+
+The full viewport is handled locally. Only the masked crop is sent after Explain: one JPEG up to1024px per edge and240KB decoded. Vision uses900outputtokens with a conservative image-context margin, the same serial queue and existing local action allowances. It never uses Gemini. Image explanations describe visible content, not uninspected repository implementation. Settings and known draft-editor URLs are excluded. Crops are temporary; see the [privacy disclosure](privacy.md).
+
+After updating gateway code, restart `npm run local-ai:share`; health should report `visionAvailable: true`. The integration update already restarted this laptop's gateway. If capture fails with a permission message, click the toolbar icon again on GitHub; opening Chrome's side-panel menu alone does not grant capture access.
+
 ## Setup and maintenance
 
 Already configured on this laptop: Ollama, `qwen3.5:4b`, a random ignored gateway credential, and an official checksum-verified portable `cloudflared` in `.local-tools/`.
