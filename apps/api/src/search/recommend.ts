@@ -3,6 +3,7 @@ import { AppError, IntentSchema, MatchSchema, type ContributorProfile, type Sear
 import { boundary, compactEvidence, validateMatches, type Model } from '../ai/analysis';
 import { GitHubClient } from '../github/client';
 import { fetchEvidence } from '../github/evidence';
+import { generationInputBound } from '../ai/budget';
 // Keep nested arrays small enough for Google's constrained-decoding grammar.
 // Full MatchSchema and evidence validation still run after generation.
 export const rankSchema = z.object({ matches: z.array(MatchSchema.extend({ fitReasons: MatchSchema.shape.fitReasons.max(3), skillGaps: MatchSchema.shape.skillGaps.max(3), limitations: MatchSchema.shape.limitations.max(3), sourceIds: MatchSchema.shape.sourceIds.max(3) })).max(3), noStrongMatch: z.boolean(), limitations: z.array(z.string().max(1000)).max(3) });
@@ -29,7 +30,15 @@ export async function recommend(request: string, profile: ContributorProfile, cl
   }
   if (!evidence.length) return { result: { matches: [], status: 'no_strong_match', searchLimitations: [...limitations, 'No suitable public candidates were verified within this search. Try a broader interest or explicitly relax a constraint.'], intent }, evidence };
   const compact = evidence.slice(0, 6).map(e => compactEvidence(e, 250));
-  const ranked = rankSchema.parse(await model.generate(rankSchema, `${boundary}\nRank at most three candidate repositories for the original request and intent. Keep each explanation concise and each list to at most three items. Skill fit, verified available work, setup burden, interests and time matter; stars do not. Obey every hard constraint. If none strongly fit, set noStrongMatch true and offer the nearest permitted alternatives with readiness learn_first and clear skill gaps. Choose only an open unassigned issue without observed competing work, otherwise issueNumber null. checkedAt must come from evidence. Request: ${request}. Profile: ${JSON.stringify(profile)}. Intent: ${JSON.stringify(intent)}. Evidence: ${JSON.stringify(compact)}`));
+  const initialCount = compact.length;
+  const prompt = () => `${boundary}\nRank at most three candidate repositories for the original request and intent. Keep each explanation concise and each list to at most three items. Skill fit, verified available work, setup burden, interests and time matter; stars do not. Obey every hard constraint. If none strongly fit, set noStrongMatch true and offer the nearest permitted alternatives with readiness learn_first and clear skill gaps. Choose only an open unassigned issue without observed competing work, otherwise issueNumber null. checkedAt must come from evidence. Request: ${request}. Profile: ${JSON.stringify(profile)}. Intent: ${JSON.stringify(intent)}. Evidence: ${JSON.stringify(compact)}`;
+  const encode = new TextEncoder();
+  const schemaBytes = encode.encode(JSON.stringify(z.toJSONSchema(rankSchema))).byteLength;
+  const allowance = model.remainingInputBytes ?? 20000;
+  while (compact.length && generationInputBound(encode.encode(prompt()).byteLength, schemaBytes) > allowance) compact.pop();
+  if (compact.length < initialCount) limitations.push('Fewer candidates were compared to stay within the remaining analysis budget.');
+  if (!compact.length) return { result: { matches: [], status: 'no_strong_match', searchLimitations: [...limitations, 'The analysis budget could not fit a candidate comparison. Try narrowing the request or profile.'], intent }, evidence };
+  const ranked = rankSchema.parse(await model.generate(rankSchema, prompt()));
   const matches = validateMatches(ranked.matches, evidence);
   return { result: { matches, intent, status: ranked.noStrongMatch || !matches.length ? 'no_strong_match' : limitations.length ? 'partial' : 'complete', searchLimitations: [...limitations, ...ranked.limitations, 'Results are a bounded shortlist, not an exhaustive search of GitHub.'].slice(0, 20) }, evidence };
 }

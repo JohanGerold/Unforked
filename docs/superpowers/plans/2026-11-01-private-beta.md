@@ -15,7 +15,7 @@
 ## Confirmed Owner Context
 
 - Owner has GitHub and Google AI Studio accounts.
-- Owner does not yet have Cloudflare.
+- At planning time the owner did not have Cloudflare. During execution they created it, completed browser authorization, and privately configured Google/GitHub credentials. See `../../beta-operations.md` for deployed demo status and outstanding acceptance gates.
 - Owner has the GitHub Student Developer Pack.
 - Cost should be free or low; start with a small private beta.
 - Existing local MVP passed 48 offline checks, 9 browser checks, and a separate public GitHub retrieval test. Real AI, real OAuth accounts, production CPU and human matching quality remain unverified.

@@ -65,6 +65,13 @@ app.post('/v1/:action', async c => {
   return c.json({ data: result, demo, requestId: data.requestId, sources: evidence.flatMap(e => e.sources), checkedAt: new Date().toISOString() });
 });
 app.onError((e, c) => {
+  if (!(e instanceof AppError)) {
+    // Never log exception messages, request URLs/queries, headers or bodies.
+    const route = ['/auth/start', '/auth/callback', '/auth/exchange', '/auth/logout'].includes(c.req.path) ? c.req.path : '/v1/action';
+    const kind = ['Error', 'TypeError', 'SyntaxError', 'OperationError', 'DataError'].includes(e.name) ? e.name : 'Error';
+    const frames = (e.stack || '').split('\n').slice(1).map(line => line.match(/^\s*at (?:async )?([\w.$<>]{1,100})(?:\s|\()/)?.[1]).filter(Boolean).slice(0, 5);
+    console.error(JSON.stringify({ event: 'unhandled_action', route, kind, frames }));
+  }
   const error = e instanceof AppError ? e : new AppError('PROVIDER_UNAVAILABLE', 'The action could not finish. Try again shortly.', 503);
   if (error.retryAfterSeconds) c.header('Retry-After', String(error.retryAfterSeconds));
   return c.json({ error: { code: error.code, userMessage: error.message, retryAfterSeconds: error.retryAfterSeconds } }, error.status as any);

@@ -47,3 +47,17 @@ it('invited members sign in and revocation immediately denies their existing ses
   await env.DB!.prepare('UPDATE beta_members SET active=0 WHERE user_id=?').bind('1').run();
   await expect(requireSession(request, env, github)).rejects.toMatchObject({ status: 403 });
 });
+it('unexpected OAuth failures return a safe response and emit diagnostics without exception text', async () => {
+  const env = config();
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const broken = vi.spyOn(env.DB!, 'prepare').mockImplementation(() => { throw new TypeError('private-token-do-not-log'); });
+  try {
+    const response = await app.request('https://beta.example.test/auth/exchange', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: 'c'.repeat(43), state: 's'.repeat(43), verifier: 'v'.repeat(43) }) }, env);
+    expect(response.status).toBe(503);
+    expect(await response.text()).not.toContain('private-token-do-not-log');
+    expect(log).toHaveBeenCalled();
+    const diagnostic = JSON.parse(String(log.mock.calls[0][0]));
+    expect(diagnostic).toMatchObject({ event: 'unhandled_action', route: '/auth/exchange', kind: 'TypeError' });
+    expect(JSON.stringify(diagnostic)).not.toContain('private-token-do-not-log');
+  } finally { broken.mockRestore(); log.mockRestore(); }
+});

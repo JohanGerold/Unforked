@@ -51,3 +51,16 @@ it('OAuth exchange is bound to PKCE and can succeed only once', async () => {
   expect((await requireSession(request, config, fetcher)).userId).toBe('1');
   await logout(request, config); await expect(requireSession(request, config, fetcher)).rejects.toMatchObject({ code: 'AUTH_REQUIRED' });
 });
+it('OAuth and session checks work with the Workers-supported manual redirect mode', async () => {
+  const config = env(), state = 's'.repeat(43), verifier = 'v'.repeat(43);
+  await config.DB!.prepare('INSERT INTO oauth_states (state_hash,challenge,expires_at,ip) VALUES (?,?,?,?)').bind(await hash(state), await hash(verifier), Date.now() + 10000, 'test').run();
+  const callback = new URL(await oauthCallback(config, state, 'github-code'));
+  const workerFetch: typeof fetch = async (url, init) => {
+    // workerd constructs Request before sending and rejects redirect:"error".
+    if (init?.redirect !== 'manual') throw new TypeError('Invalid redirect value, must be follow or manual');
+    return String(url).includes('/access_token') ? Response.json({ access_token: 'provider-secret', scope: '', token_type: 'bearer' }) : Response.json({ id: 1, login: 'owner' });
+  };
+  const session = await exchangeCode(config, { state, verifier, code: callback.searchParams.get('code')! }, workerFetch);
+  const request = new Request('https://api.example.test', { headers: { Authorization: `Bearer ${session.sessionToken}` } });
+  expect((await requireSession(request, config, workerFetch)).userId).toBe('1');
+});

@@ -14,7 +14,7 @@ export class GitHubClient {
     if (this.token) headers.Authorization = `Bearer ${this.token}`;
     if (cached?.etag) headers['If-None-Match'] = cached.etag;
     let response: Response;
-    try { response = await this.fetcher(`https://api.github.com${path}`, { headers, redirect: 'error', signal: this.signal ? AbortSignal.any([this.signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) }); }
+    try { response = await this.fetcher(`https://api.github.com${path}`, { headers, redirect: 'manual', signal: this.signal ? AbortSignal.any([this.signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) }); }
     catch (e) { if (this.signal?.aborted) throw e; throw new AppError('PROVIDER_UNAVAILABLE', 'GitHub could not be reached. Try again shortly.', 503); }
     if (response.status === 304 && cached) { cached.expires = Date.now() + 3600000; return cached.body; }
     if (response.status === 429 || (response.status === 403 && (response.headers.get('x-ratelimit-remaining') === '0' || response.headers.has('retry-after')))) {

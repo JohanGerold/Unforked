@@ -15,6 +15,10 @@ The default ranking schema's nested arrays of up to 20 items produced Google `40
 
 The recorded generation calls fit the existing per-action input/output bounds. No output-limit or reasoning change was necessary. The reference paid-rate equivalent for the three successful initial calls plus intent extraction is about $0.0043, although this run used the owner's confirmed free tier; this is neither a provider invoice nor an estimate of every attempted test.
 
+Independent review also reproduced an ordinary six-candidate search exceeding the cumulative 30,000-byte allowance before ranking. A regression failed with the real `GenerationBudget`, then passed after ranking was changed to measure its exact serialized prompt, schema and overhead against the remaining allowance and reduce compared candidates as needed. The cap was not raised; reduced coverage is disclosed in search limitations.
+
+The owner's first real OAuth attempt exposed a Worker runtime incompatibility: `redirect: 'error'` throws before an outbound request. Authentication and public retrieval now use `manual`, preserving redirect isolation. Regression cases failed before the fix and passed afterwards; a deployed controlled OAuth flow now reaches GitHub and returns the expected `401 AUTH_REQUIRED` for an intentionally invalid test code instead of `503`. This control is not a completed real-account sign-in. [Workers Request behavior](https://developers.cloudflare.com/workers/runtime-apis/request/).
+
 Offline/provider compatibility is not a human relevance score. The 20-prompt set in `evaluation.md` has **not** been completed. No 16/20 claim is made. Do not invite testers until real OAuth, corrected full search, constraint adherence, outsider denial, hosted CPU and provider/quota failure behavior are recorded.
 
 Explicit opt-in commands (network calls; check authorization and current tier first):

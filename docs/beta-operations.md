@@ -12,7 +12,7 @@ Dedicated D1 database: `unforked-beta`, `81fa3b79-cb10-463d-8b28-75226664412c`, 
 
 ## Current launch gate
 
-The Worker is deployed in **demo mode**. Live mode requires the owner's GitHub OAuth Client ID/Secret, a token encryption secret, successful hosted sign-in, real search evaluation and hosted CPU measurements. Three real Gemini actions passed; the ranking-schema compatibility issue was reproduced and corrected, but a full corrected search still needs authenticated GitHub retrieval after public rate limits were reached. This is not ready to invite testers yet.
+The Worker is deployed in **demo mode**. The owner supplied GitHub OAuth credentials privately; all three secrets are installed and the OAuth start endpoint's GitHub target, callback, PKCE and extension CORS were verified. Live mode still requires a successful hosted sign-in, real search evaluation and hosted CPU measurements. Three real Gemini actions passed; the ranking-schema compatibility issue was reproduced and corrected, but a full corrected search still needs authenticated GitHub retrieval after public rate limits were reached. This is not ready to invite testers yet.
 
 ## Deployment
 
@@ -53,12 +53,12 @@ To revoke, set `active=0` for that numeric ID. Every subsequent hosted live acti
 
 For a generation shutdown, set `MODE=demo` in the beta configuration and deploy it; responses become labeled demonstrations and no new model calls are made. Revoke members for individual access problems. Already-started provider calls may finish and retain their reservations.
 
-Record the working deployment version before changing a live release. Initial demo version: `ca2a4c6c-30e1-4598-8484-428db67b735b`. Verify current Wrangler help before rolling back to a known version; D1 data, secrets and other bound resources do not roll back with code. An old version must understand the current schema and retain the invite-only access check. Never roll back to code that lacks those controls.
+Record the working deployment version before changing a live release. Initial demo version: `ca2a4c6c-30e1-4598-8484-428db67b735b`. Demo version with OAuth configuration: `f4df3e87-2e4d-4e10-a1d4-6f0a78e62810`. Verify current Wrangler help before rolling back to a known version; D1 data, secrets and other bound resources do not roll back with code. An old version must understand the current schema and retain the invite-only access check. Never roll back to code that lacks those controls.
 
 ## Privacy and monitoring
 
 Support: johangerold385@gmail.com. Public policy is served at `/privacy`. Auth rows expire and an hourly cron removes them; usage dates are pruned at the 90-day UTC boundary without removing the current month's allowance. Invitations persist until removed. Scheduled cleanup has SQL-backed automated coverage; remote execution must still be observed before launch.
 
-Workers invocation logs are disabled, URL query strings are redacted, and traces are not persisted. Application code does not log prompts, profile contents, OAuth codes, tokens or repository text. Use Cloudflare aggregate request/error/CPU metrics and aggregate D1 counts; never paste raw request headers, OAuth callback queries or secret files into reports. Providers still process normal network metadata.
+Workers invocation logs are disabled, URL query strings are redacted, and traces are not persisted. Unexpected application errors emit only a fixed route category, whitelisted error class and function names; exception messages and request contents are omitted. Application code does not log prompts, profile contents, OAuth codes, tokens or repository text. Use Cloudflare aggregate request/error/CPU metrics and aggregate D1 counts; never paste raw request headers, OAuth callback queries or secret files into reports. Providers still process normal network metadata.
 
 Before a tester invitation, record the OAuth round trip, outsider denial/revocation, actual live search quality, quota failure behavior and Worker CPU. The deployment's startup time is not a per-request CPU measurement. Benchmark against the current Workers plan rather than assuming the free request quota proves sufficient compute.

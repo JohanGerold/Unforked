@@ -34,10 +34,10 @@ export async function exchangeCode(env: Env, input: { code: string; state: strin
   const row = await config.db.prepare('DELETE FROM oauth_states WHERE exchange_hash=? AND state_hash=? AND challenge=? AND expires_at>? RETURNING github_code').bind(await hash(input.code), await hash(input.state), await hash(input.verifier), Date.now()).first<{ github_code: string }>();
   if (!row?.github_code) throw new AppError('AUTH_REQUIRED', 'This sign-in attempt is invalid or expired. Start again.', 401);
   const code = await unseal(row.github_code, config.key);
-  const tokenResponse = await fetcher('https://github.com/login/oauth/access_token', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: env.GITHUB_CLIENT_ID, client_secret: env.GITHUB_CLIENT_SECRET, code, code_verifier: input.verifier, redirect_uri: config.callback }), redirect: 'error', signal: AbortSignal.timeout(15000) });
+  const tokenResponse = await fetcher('https://github.com/login/oauth/access_token', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: env.GITHUB_CLIENT_ID, client_secret: env.GITHUB_CLIENT_SECRET, code, code_verifier: input.verifier, redirect_uri: config.callback }), redirect: 'manual', signal: AbortSignal.timeout(15000) });
   const token = await tokenResponse.json() as any;
   if (!tokenResponse.ok || !token.access_token || token.scope?.trim() || token.token_type !== 'bearer') throw new AppError('AUTH_REQUIRED', 'Public-only sign-in could not be completed. Revoke any older broader Unforked grant in GitHub and try again.', 401);
-  const identity = await fetcher('https://api.github.com/user', { headers: { Authorization: `Bearer ${token.access_token}`, 'User-Agent': 'Unforked/0.1', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(15000), redirect: 'error' });
+  const identity = await fetcher('https://api.github.com/user', { headers: { Authorization: `Bearer ${token.access_token}`, 'User-Agent': 'Unforked/0.1', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(15000), redirect: 'manual' });
   const user = await identity.json() as any; if (!identity.ok || !Number.isSafeInteger(user.id)) throw new AppError('AUTH_REQUIRED', 'GitHub identity could not be verified.', 401);
   await checkMembership(env, String(user.id));
   const sessionToken = encode(crypto.getRandomValues(new Uint8Array(32))); const expiresAt = Date.now() + Math.min(28800, Number(token.expires_in) || 28800) * 1000;
@@ -53,7 +53,7 @@ export async function requireSession(request: Request, env: Env, fetcher: typeof
   if (!row || row.expires_at <= Date.now()) throw new AppError('AUTH_REQUIRED', 'Your session expired. Sign in again.', 401);
   await checkMembership(env, row.user_id);
   let githubToken: string; try { githubToken = await unseal(row.encrypted_token, env.TOKEN_ENCRYPTION_KEY); } catch { throw new AppError('AUTH_REQUIRED', 'Your session could not be read. Sign in again.', 401); }
-  const identity = await fetcher('https://api.github.com/user', { headers: { Authorization: `Bearer ${githubToken}`, 'User-Agent': 'Unforked/0.1' }, signal: AbortSignal.timeout(15000), redirect: 'error' });
+  const identity = await fetcher('https://api.github.com/user', { headers: { Authorization: `Bearer ${githubToken}`, 'User-Agent': 'Unforked/0.1' }, signal: AbortSignal.timeout(15000), redirect: 'manual' });
   if (identity.status === 401) { await env.DB.prepare('DELETE FROM sessions WHERE token_hash=?').bind(digest).run(); throw new AppError('AUTH_REQUIRED', 'GitHub access was revoked. Sign in again.', 401); }
   if (!identity.ok) throw new AppError('PROVIDER_UNAVAILABLE', 'GitHub sign-in could not be checked. Try again shortly.', 503);
   const user = await identity.json() as any; if (String(user.id) !== row.user_id) throw new AppError('AUTH_REQUIRED', 'The GitHub account did not match this session.', 401);

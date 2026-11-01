@@ -19,6 +19,17 @@ it('missing README and contribution instructions still return limited public evi
   const data = await fetchEvidence(ref, github());
   expect(data.repo).toEqual(ref); expect(data.completeness).toBe('partial'); expect(data.sources[0].url).toBe('https://github.com/psf/requests'); expect(data.languages).toEqual(['Python']);
 });
+it('public retrieval works on Workers and does not follow credential-bearing redirects', async () => {
+  let calls = 0;
+  const client = new GitHubClient('test-token', async (_url, init) => {
+    calls++;
+    if (init?.redirect !== 'manual') throw new TypeError('Invalid redirect value, must be follow or manual');
+    return calls === 1 ? Response.json({ description: 'Public metadata' }) : new Response(null, { status: 302, headers: { Location: 'https://untrusted.example.test' } });
+  });
+  expect(await client.get('/repos/example/project')).toEqual({ description: 'Public metadata' });
+  await expect(client.get('/repos/example/project/issues')).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE' });
+  expect(calls).toBe(2);
+});
 it('surfaces rate-limit reset information', async () => {
   const client = new GitHubClient(undefined, async () => Response.json({}, { status: 429, headers: { 'Retry-After': '30' } }));
   await expect(client.get('/repos/psf/requests')).rejects.toMatchObject({ code: 'RATE_LIMITED', retryAfterSeconds: 30 });
