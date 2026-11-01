@@ -1,4 +1,5 @@
 import { z } from 'zod';
+export * from './local-ai';
 export { parseRepoRef } from './repo-ref';
 const text = z.string().trim().min(1).max(2000);
 const items = z.array(text).max(20);
