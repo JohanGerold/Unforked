@@ -45,6 +45,14 @@ it('enforces the configured retrieval allowance before sending another request',
   await expect(client.get('/repos/example/third')).rejects.toMatchObject({ code: 'BUDGET_EXHAUSTED' });
   expect(calls).toBe(2);
 });
+it('does not invoke a Worker global fetch function with the client as its receiver', async () => {
+  const workerFetch: typeof fetch = async function (this: unknown) {
+    if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation: incorrect this reference');
+    return Response.json({ description: 'Public tool' });
+  };
+  const client = new GitHubClient(undefined, workerFetch);
+  expect(await client.get('/repos/example/receiver')).toEqual({ description: 'Public tool' });
+});
 it('refuses arbitrary fetch URLs and unsafe API paths', async () => {
   const client = github();
   await expect(client.get('https://evil.test/data')).rejects.toMatchObject({ code: 'INVALID_INPUT' });

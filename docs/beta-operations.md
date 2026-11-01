@@ -12,7 +12,7 @@ Dedicated D1 database: `unforked-beta`, `81fa3b79-cb10-463d-8b28-75226664412c`, 
 
 ## Current launch gate
 
-The Worker is deployed as an **owner-only live pilot**, version `0d50ddda-2e72-42e8-9895-d01f7f6be155`. The owner supplied GitHub OAuth credentials privately; all three secrets are installed. The real GitHub → callback → extension → session flow succeeded, confirmed by the owner and numeric session identity `181932151`. Live search evaluation and hosted generation CPU measurements are still required. Three local real-Gemini actions and the corrected ranking-schema probe passed. No testers are invited yet.
+The Worker is deployed as an **owner-only live pilot**, version `a01d0d35-f818-4d63-aa3f-a1ff016e1170`. The owner supplied GitHub OAuth credentials privately; all three secrets are installed. The real GitHub → callback → extension → session flow succeeded, confirmed by the owner and numeric session identity `181932151`. Live search evaluation and hosted generation CPU measurements are still required. Three local real-Gemini actions and the corrected ranking-schema probe passed. No testers are invited yet.
 
 ## Deployment
 
