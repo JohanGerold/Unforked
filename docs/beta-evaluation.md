@@ -33,3 +33,9 @@ npx vitest run --config vitest.live.config.ts
 ```
 
 The smoke suite reads ignored `.dev.vars`, caps its AI calls, disables retries through the production adapter, and uses public example inputs. It writes public outputs and numeric usage to ignored `.superpowers` artifacts. It never runs under ordinary `npm test`. A narrow failed action can be rerun with `UNFORKED_LIVE_ACTION=search` rather than repeating already-passed generation actions.
+
+## First successful hosted search
+
+The owner confirmed one live recommendation: codepiyusss/open_source_issue_contribution, described as a beginner Python CLI project for first contributions. No starting issue was claimed verified. Trace evidence: search HTTP200, 7.74seconds wall/71msCPU; one learning-path HTTP200, 5.07seconds wall/34msCPU. A subsequent learning request was denied429beforegeneration because three retained failed debugging requests plus these two completed actions reached the initial five-action daily allowance. This is the application's internal limit, not evidence of exhausted Google credits.
+
+The owner-only pilot allowance was temporarily increased to ten daily actions; the $5-equivalent monthly ceiling and all prior reservations remain unchanged. Restore five before inviting testers. The real search and server learning response now pass basic hosted transport acceptance; the 20-prompt quality set, a confirmed learning-path display, additional failure/revocation checks and reliable free-tier CPU fit remain outstanding. Do not infer public readiness from these samples.

@@ -12,7 +12,7 @@ Dedicated D1 database: `unforked-beta`, `81fa3b79-cb10-463d-8b28-75226664412c`, 
 
 ## Current launch gate
 
-The Worker is deployed as an **owner-only live pilot**, version `a01d0d35-f818-4d63-aa3f-a1ff016e1170`. The owner supplied GitHub OAuth credentials privately; all three secrets are installed. The real GitHub → callback → extension → session flow succeeded, confirmed by the owner and numeric session identity `181932151`. Live search evaluation and hosted generation CPU measurements are still required. Three local real-Gemini actions and the corrected ranking-schema probe passed. No testers are invited yet.
+The Worker is deployed as an **owner-only live pilot**, version `19c6d8ae-6363-48d0-9781-a7aeb067ee44`. The owner supplied GitHub OAuth credentials privately; all three secrets are installed. The real GitHub → callback → extension → session flow succeeded, confirmed by the owner and numeric session identity `181932151`. Live search evaluation and hosted generation CPU measurements are still required. Three local real-Gemini actions and the corrected ranking-schema probe passed. No testers are invited yet.
 
 ## Deployment
 
@@ -37,7 +37,7 @@ npm run test:e2e
 npm run package
 ```
 
-Do not run the opt-in live suite without checking the owner's current free-tier/budget authorization. Models and quotas can change. No automatic retries are configured. Production generation reserves at least $0.05-equivalent of the internal allowance per action, with five actions per UTC day per user and $5-equivalent per UTC month across the app. These controls do not create a paid Google budget or guarantee an invoice amount. They apply even when the provider is free. Current model reference rates were checked November 1, 2026: Gemini 3.5 Flash-Lite $0.30 input / $2.50 output per million tokens on its paid tier. [Google pricing](https://ai.google.dev/gemini-api/docs/pricing).
+Do not run the opt-in live suite without checking the owner's current free-tier/budget authorization. Models and quotas can change. No automatic retries are configured. Production generation reserves at least $0.05-equivalent of the internal allowance per action, with ten actions per UTC day for the owner-only pilot and $5-equivalent per UTC month across the app. These controls do not create a paid Google budget or guarantee an invoice amount. They apply even when the provider is free. Current model reference rates were checked November 1, 2026: Gemini 3.5 Flash-Lite $0.30 input / $2.50 output per million tokens on its paid tier. [Google pricing](https://ai.google.dev/gemini-api/docs/pricing).
 
 The beta additionally caps GitHub calls at 40 per action, leaving room for authentication, AI and accounting under Workers Free's 50-subrequest limit. The general local client defaults to an 80-call ceiling; every beta action receives the configured lower allowance. Results disclose retrieval/analysis limits. [Workers limits](https://developers.cloudflare.com/workers/platform/limits/).
 
@@ -64,3 +64,5 @@ Support: johangerold385@gmail.com. Public policy is served at `/privacy`. Auth r
 Workers invocation logs are disabled, URL query strings are redacted, and traces are not persisted. Unexpected application errors emit only a fixed route category, whitelisted error class and function names; exception messages and request contents are omitted. Application code does not log prompts, profile contents, OAuth codes, tokens or repository text. Use Cloudflare aggregate request/error/CPU metrics and aggregate D1 counts; never paste raw request headers, OAuth callback queries or secret files into reports. Providers still process normal network metadata.
 
 Before a tester invitation, record the OAuth round trip, outsider denial/revocation, actual live search quality, quota failure behavior and Worker CPU. The deployment's startup time is not a per-request CPU measurement. Benchmark against the current Workers plan rather than assuming the free request quota proves sufficient compute.
+
+Owner testing allowance: temporarily ten daily actions while only JohanGerold is invited. Restore five before adding testers. The three failed debugging actions and two successful actions remain recorded; no reservations were erased or monthly ceiling increased.
