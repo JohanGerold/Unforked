@@ -1,6 +1,6 @@
 # Chrome Web Store Listing — Unforked
 
-Last updated: November 1, 2026. Local package only; not submitted.
+Last updated: November 1, 2026. Hosted owner-only live pilot; store listing draft, not submitted.
 
 ## Store listing
 
@@ -16,7 +16,7 @@ Describe what you know and what you want to work on. Explore a short list of pro
 
 Open the sidebar from the toolbar. Add your skills, describe a goal, and explore the results. You can also enter a repository URL or use the GitHub link context menu.
 
-The current local package starts with clearly labeled demonstration examples. Live recommendations require a configured service. Suggestions are estimates, not guarantees of issue availability or contribution acceptance.
+The current beta requires an invited GitHub account for live recommendations. Usage allowances apply. Suggestions are estimates, not guarantees of issue availability or contribution acceptance.
 
 Profiles and saved projects stay on your device. Explicit analysis requests send relevant text and public repository information to the configured service. No microphone or browsing-history access is requested.
 
@@ -41,9 +41,9 @@ Profiles and saved projects stay on your device. Explicit analysis requests send
 | contextMenus | Offer “Explain repository with Unforked” for GitHub page links |
 | identity | Complete GitHub sign-in for a configured hosted live service |
 | https://github.com/* | Resolve selected repository links and render the user-invoked circle overlay on GitHub |
-| Configured backend origin | Send explicit requests and receive repository analysis; the local build permits loopback port 8787 |
+| https://unforked-beta.unforked-api.workers.dev/* | Send requested repository analysis and complete GitHub sign-in with the hosted service |
 
-The content script is restricted to GitHub. The manifest does not request history, microphone, broad all-site access, or repository write access. Replace the localhost backend origin and rebuild before any public release.
+The content script is restricted to GitHub. The manifest does not request history, microphone, broad all-site access, or repository write access. The beta ZIP targets the hosted HTTPS backend; ordinary local demo builds default to loopback and must not be uploaded accidentally. Run beta preflight against the exact store build.
 
 ## Privacy and data use
 
@@ -51,22 +51,31 @@ Data is handled: local skills/preferences and saved snapshots; explicitly submit
 
 The implementation has no sale, advertising, creditworthiness, or unrelated-use functionality. The publisher must verify model-provider data-use settings and operational retention before certifying store disclosures.
 
-**Policy:** Draft at `docs/privacy.md`. A real, publicly accessible URL is required.
+**Policy:** https://unforked-beta.unforked-api.workers.dev/privacy. Source disclosure is maintained in `docs/privacy.md`. Support: johangerold385@gmail.com. Google free-tier data use, encrypted authentication storage and hourly cleanup of expired authentication/90-day usage records must match the store disclosure form.
 
 ## Distribution and publisher
 
-Not configured. Publisher name, contact email, support URL, target regions, privacy URL, model-provider disclosures and hosted-service setup require the owner's real details. Do not invent them or submit this draft.
+Owner GitHub account: JohanGerold. Support contact and live privacy URL are configured above. Store publisher name, developer registration, target regions, final visibility and reviewer access are not configured. No listing was created or submitted.
+
+Friends beta: first finish the remaining hosting/acceptance checks, separate the owner's testing allowance from small per-friend allowances, and add only owner-provided GitHub identities to the backend invitation list. Friends extract the beta ZIP, load its folder through chrome://extensions Developer mode and sign in with their invited GitHub account. They do not receive backend credentials. See `docs/beta-tester-guide.md`.
+
+Store distribution: register a Chrome Web Store developer account (one-time registration fee), upload the release ZIP, supply final screenshots/listing/privacy/permissions/reviewer instructions, choose Private, Unlisted or Public, and submit for review. All visibility choices require review. Unlisted permits installation by anyone with the store link; backend invitations remain the live-access boundary. Public availability also requires a deliberate self-service signup or waitlist policy rather than simply removing the invite check.
+
+Before store distribution, verify the store-assigned extension ID/public key and align the backend extension origin and OAuth return URL. The unpacked beta's locally generated identity must not be assumed to match the store identity. Test actual store-installed sign-in before sharing its link.
+
+Official references: [Registration](https://developer.chrome.com/docs/webstore/register/), [distribution visibility](https://developer.chrome.com/docs/webstore/cws-dashboard-distribution/), [publishing](https://developer.chrome.com/docs/webstore/publish/), [stable identity](https://developer.chrome.com/docs/extensions/reference/manifest/key).
 
 ## Version history
 
 | Version | Date | Change | Status |
 |---|---|---|---|
-| 0.1.0 | 2026-11-01 | Local sidebar, discovery, summaries, learning paths, saved list, circle selection and hosted-service controls | Draft |
+| 0.1.0 | 2026-11-01 | Sidebar, discovery, summaries, learning paths, saved list, circle selection and hosted invite-only service | Owner live pilot; store draft |
 
 ## Release prerequisites
 
-- Configure and test the hosted service, OAuth redirects, production permissions, rate limits and actual model quality.
-- Choose and enforce usage-record retention; publish a matching privacy policy and support contact.
-- Replace local backend permissions; review screenshots, store description and demo/live labeling.
+- Complete the remaining hosted acceptance, actual free-tier CPU/capacity profiling and broader matching-quality checks. The owner reports the core journeys working; that is not load-test evidence.
+- Verify deployed cleanup and rollback, and match the live policy/retention/support details in the store forms.
+- Separate owner/tester allowances and agree sufficient shared capacity before inviting friends. The current 100-action daily setting applies globally; only the owner is currently invited. With the current reservation floor and monthly ceiling, the app supports at most 100 generation actions per month in total, not per user.
+- Verify the store identity, OAuth and final HTTPS permissions; refresh screenshots and demo/live labeling.
 - Inspect the packaged ZIP for secrets and development-only files; load that exact build.
 - Submit only after the owner requests publication.
