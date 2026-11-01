@@ -21,3 +21,9 @@ it('discards a capture if the active tab changes before or after screenshot acqu
     expect(captures).toBe(switchAfter ? 1 : 0);
   }
 });
+it('rejects a tab switch away and back during capture even if final snapshots match', async () => {
+  const region = { points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }], viewport: { width: 640, height: 300, scrollX: 0, scrollY: 0 } };
+  const tab = { id: 1, windowId: 2, url: 'https://github.com/psf/requests', active: true }; let generation = 0; let cropped = false;
+  const api = { current: async () => tab, context: async () => ({ url: tab.url, ...region.viewport }), capture: async () => { generation += 2; return 'data:image/png;base64,other-tab'; }, crop: async () => { cropped = true; return visionInput().image; } };
+  await expect(captureCircle(tab, { pageUrl: tab.url, region }, api, () => generation === 0)).rejects.toThrow(/changed/); expect(cropped).toBe(false);
+});

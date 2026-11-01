@@ -2,9 +2,9 @@ const reserved = new Set(['topics', 'settings', 'search', 'explore', 'marketplac
 export function imagePageRepo(input: string): { owner: string; name: string } | null {
   try {
     const url = new URL(input); const repo = parseRepoRef(input);
-    const parts = url.pathname.split('/').filter(Boolean).slice(2);
+    const parts = url.pathname.split('/').filter(Boolean).slice(2).map(part => decodeURIComponent(part).toLowerCase());
     const area = !parts.length || ['blob', 'tree', 'issues', 'pull', 'discussions', 'wiki', 'releases', 'commit', 'commits', 'compare', 'tags', 'branches'].includes(parts[0]);
-    const editor = ['issues', 'discussions', 'pull', 'releases'].includes(parts[0]) && ['new', 'edit'].includes(parts[1]);
+    const editor = ['issues', 'discussions', 'pull', 'releases'].includes(parts[0]) && ['new', 'edit'].includes(parts[1]) || parts[0] === 'wiki' && parts.slice(1).some(part => part === '_new' || part === '_edit');
     return repo && area && !editor && !url.search && !url.hash ? repo : null;
   } catch { return null; }
 }

@@ -42,16 +42,18 @@ const chromeCapture: CaptureApi = {
   capture: async windowId => chrome.tabs.captureVisibleTab(windowId, { format: 'png' }),
   crop: cropCapture
 };
-export async function captureCircle(tab: CaptureTab, input: { pageUrl: string; region: CircleRegion }, api: CaptureApi = chromeCapture): Promise<ImageSelection> {
+export async function captureCircle(tab: CaptureTab, input: { pageUrl: string; region: CircleRegion }, api: CaptureApi = chromeCapture, isCurrent: () => boolean = () => true): Promise<ImageSelection> {
   if (tab.id === undefined || tab.windowId === undefined || !tab.url || tab.url !== input.pageUrl) throw new Error('The GitHub page changed. Draw the selection again.');
   const url = new URL(input.pageUrl); url.search = ''; url.hash = ''; const repo = imagePageRepo(url.href);
   if (!repo) throw new Error('Open a GitHub repository README, code or issue page to explain an image. Settings and drafts are not supported.');
   const region = CircleRegionSchema.parse(input.region);
   const unchanged = async () => {
+    if (!isCurrent()) throw new Error('The active page changed during capture. Draw the selection again.');
     const current = await api.current(tab.windowId!);
     if (!current || current.id !== tab.id || current.url !== input.pageUrl) throw new Error('The active page changed. Draw the selection again.');
     const context = await api.context(tab.id!);
     if (context.url !== input.pageUrl || context.width !== region.viewport.width || context.height !== region.viewport.height || Math.abs(context.scrollX - region.viewport.scrollX) > 1 || Math.abs(context.scrollY - region.viewport.scrollY) > 1) throw new Error('The page moved or changed. Draw the selection again.');
+    if (!isCurrent()) throw new Error('The active page changed during capture. Draw the selection again.');
   };
   await unchanged();
   let screenshot: string; try { screenshot = await api.capture(tab.windowId); } catch { throw new Error('Click Unforked’s toolbar icon on GitHub, then try Circle again. Chrome needs that action before image capture.'); }

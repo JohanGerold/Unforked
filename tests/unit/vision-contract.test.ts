@@ -9,6 +9,7 @@ it('binds image requests to a GitHub repository page without query credentials',
   expect(VisionRequestSchema.safeParse(visionInput()).success).toBe(true);
   for (const pageUrl of ['https://evil.test/psf/requests', 'https://github.com/pallets/flask', 'https://github.com/psf/requests?token=secret']) expect(VisionRequestSchema.safeParse({ ...visionInput(), pageUrl }).success).toBe(false);
   for (const pageUrl of ['https://github.com/psf/requests/settings/secrets', 'https://github.com/psf/requests/issues/new']) expect(VisionRequestSchema.safeParse({ ...visionInput(), pageUrl }).success).toBe(false);
+  for (const pageUrl of ['https://github.com/psf/requests/wiki/_new', 'https://github.com/psf/requests/wiki/Page/_edit', 'https://github.com/psf/requests/wiki/Page/%5Fedit']) expect(VisionRequestSchema.safeParse({ ...visionInput(), pageUrl }).success).toBe(false);
 });
 it('validates viewport-contained selection geometry and reserves vision context space', () => {
   const region = { points: [{ x: 10, y: 10 }, { x: 110, y: 10 }, { x: 110, y: 110 }, { x: 10, y: 110 }], viewport: { width: 640, height: 300, scrollX: 0, scrollY: 0 } };
