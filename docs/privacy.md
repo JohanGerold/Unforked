@@ -1,6 +1,6 @@
 # Unforked private beta privacy disclosure
 
-Last updated: November 1, 2026. Support and privacy contact: johangerold385@gmail.com. The beta policy is published at https://unforked-beta.unforked-api.workers.dev/privacy. Live beta access is restricted to invited GitHub identities.
+Last updated: November 2, 2026. Support and privacy contact: johangerold385@gmail.com. The beta policy is published at https://unforked-beta.unforked-api.workers.dev/privacy. Live beta access is restricted to invited GitHub identities.
 
 ## Local data
 
@@ -11,6 +11,8 @@ The extension reads GitHub page URLs and repository links to identify the projec
 ## Requested analysis
 
 When you explicitly request an action, the selected repository identity, typed request/question, and relevant profile fields are sent to the configured Unforked backend. The backend retrieves public GitHub documentation and bounded activity samples. Settings identifies the selected AI provider.
+
+Knowledge roadmaps also inspect selected public dependency manifests and source snippets to identify relevant languages, concepts and libraries. Retrieval is bounded; this is not a complete code audit. Repository content is treated as data and never executed.
 
 With local AI selected, this material travels through an authenticated Cloudflare Tunnel connection to the beta owner's laptop. Ollama and Qwen3.5 4B process prompts and answers in memory; the gateway does not persist them or log their content. GitHub access tokens remain on the hosted backend and are never sent to the laptop. The laptop must be awake and online. There is one active generation slot and a bounded waiting queue. Local AI never automatically falls back to Google.
 

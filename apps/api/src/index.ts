@@ -6,6 +6,7 @@ import { selectedProvider } from './ai/provider-selection';
 import { analyzeSummary, buildLearningPath, answerQuestion } from './ai/analysis';
 import { GitHubClient } from './github/client';
 import { fetchEvidence } from './github/evidence';
+import { fetchLearningEvidence } from './github/learning-evidence';
 import { recommend } from './search/recommend';
 import { demoEvidence, demoLearning, demoSearch, demoSummary, findDemo } from './demo';
 import type { Env } from './env';
@@ -59,7 +60,7 @@ app.post('/v1/:action', async c => {
     const client = new GitHubClient(session?.githubToken || c.env.GITHUB_TOKEN, fetch, c.req.raw.signal, Number(c.env.GITHUB_REQUEST_LIMIT || '80'));
     try {
       if (action === 'search') { const found = await recommend(data.request!, data.profile || defaultProfile, client, model); result = found.result; evidence = found.evidence; }
-      else { const e = await fetchEvidence(data.repo!, client); evidence = [e]; result = action === 'summary' ? await analyzeSummary(e, model) : action === 'learning-path' ? await buildLearningPath(data.request || `Contribute to ${repoKey(e.repo)}`, data.profile || defaultProfile, e, model) : await answerQuestion(data.question!, e, model); }
+      else { const e = action === 'learning-path' ? await fetchLearningEvidence(data.repo!, client) : await fetchEvidence(data.repo!, client); evidence = [e]; result = action === 'summary' ? await analyzeSummary(e, model) : action === 'learning-path' ? await buildLearningPath(data.request || `Contribute to ${repoKey(e.repo)}`, data.profile || defaultProfile, e, model) : await answerQuestion(data.question!, e, model); }
       if (session) await finishUsage(c.env, session.userId, data.requestId, false);
     } catch (e) { if (session) await finishUsage(c.env, session.userId, data.requestId, true); throw e; }
   }

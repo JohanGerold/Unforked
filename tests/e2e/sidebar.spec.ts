@@ -12,8 +12,8 @@ test('contributor can search, save a repository, and build a learning path', asy
   await page.getByRole('button', { name: /Saved/ }).click();
   await expect(page.getByRole('heading', { name: 'requests', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Learning path for psf/requests' }).click();
-  await expect(page.getByRole('heading', { name: 'Your next steps' })).toBeVisible();
-  await expect(page.getByText('Understand the project', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'What to learn' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Python', exact: true })).toBeVisible();
 });
 test('profile survives a reload and can be cleared', async ({ page }) => {
   await page.goto('/'); await page.getByRole('button', { name: 'Your skills', exact: true }).click();

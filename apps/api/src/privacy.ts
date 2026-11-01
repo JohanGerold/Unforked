@@ -8,11 +8,11 @@ export function betaInformation(env: Env): string {
 Find public GitHub projects, understand repositories, and plan contributions.
 Access to live actions is restricted to invited GitHub accounts.
 
-Privacy policy — updated November 1, 2026
+Privacy policy — updated November 2, 2026
 
 Your profile and saved repositories stay in Chrome local storage on your device. Clear them in Settings or uninstall the extension. Circle gestures are processed locally. Unforked does not upload screenshots or inspect other websites.
 
-When you request an analysis, your request/question, relevant profile fields and the selected public repository are sent to this backend. Public repository documentation and bounded activity samples are retrieved from GitHub. ${generation} Avoid personal or confidential information. Demo responses do not call an AI provider.
+When you request an analysis, your request/question, relevant profile fields and the selected public repository are sent to this backend. Public repository documentation and bounded activity samples are retrieved from GitHub. Knowledge roadmaps additionally inspect selected public dependency manifests and source-code snippets to identify languages, concepts and libraries. Repository files are treated as data and never executed. ${generation} Avoid personal or confidential information. Demo responses do not call an AI provider.
 
 GitHub handles sign-in. Cloudflare hosts the API and D1 database. We store your numeric GitHub ID, invitation status and username, hashed session tokens, encrypted GitHub access tokens, OAuth state, request IDs, UTC usage dates and allowance reservations. Profiles, raw prompts and repository text are not saved in D1 or application logs. Provider services process network metadata under their own terms. No advertising or tracking analytics are installed.
 
