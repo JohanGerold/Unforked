@@ -2,7 +2,10 @@ import { AppError } from '@unforked/contracts';
 const cache = new Map<string, { body: unknown; etag: string | null; expires: number }>();
 export class GitHubClient {
   remaining = 80;
-  constructor(private token?: string, private fetcher: typeof fetch = fetch, private signal?: AbortSignal) {}
+  constructor(private token?: string, private fetcher: typeof fetch = fetch, private signal?: AbortSignal, requestLimit = 80) {
+    if (!Number.isSafeInteger(requestLimit) || requestLimit < 1 || requestLimit > 80) throw new AppError('PROVIDER_UNAVAILABLE', 'The GitHub retrieval allowance is not configured correctly.', 503);
+    this.remaining = requestLimit;
+  }
   async get(path: string, refresh = false): Promise<any> {
     if (!/^\/(?:repos\/[\w-]+\/[\w.-]+(?:\/(?:readme|languages|contents(?:\/[\w./-]+)?|issues(?:\/\d+)?|pulls))?|search\/repositories)(?:\?[^#]*)?$/.test(path) || path.includes('..') || path.includes('\\')) throw new AppError('INVALID_INPUT', 'Unsupported GitHub resource.');
     // Authenticated caches are request-local: never share token-scoped response data.

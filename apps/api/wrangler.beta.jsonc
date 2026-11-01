@@ -11,7 +11,7 @@
   "preview_urls": false,
   "vars": {
     "ENVIRONMENT": "production",
-    "MODE": "demo",
+    "MODE": "live",
     "BETA_ACCESS": "invite-only",
     "EXTENSION_ID": "afgkgdnejdfeacijhmcgajbgmgamhced",
     "SUPPORT_EMAIL": "johangerold385@gmail.com",
@@ -22,7 +22,8 @@
     "MONTHLY_BUDGET_MICRODOLLARS": "5000000",
     "ACTION_RESERVATION_MICRODOLLARS": "50000",
     "API_ORIGIN": "https://unforked-beta.unforked-api.workers.dev",
-    "GITHUB_CLIENT_ID": "Ov23livNxP5tCgSBsAJC"
+    "GITHUB_CLIENT_ID": "Ov23livNxP5tCgSBsAJC",
+    "GITHUB_REQUEST_LIMIT": "40"
   },
   "d1_databases": [
     {

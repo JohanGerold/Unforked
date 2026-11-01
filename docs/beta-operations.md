@@ -12,7 +12,7 @@ Dedicated D1 database: `unforked-beta`, `81fa3b79-cb10-463d-8b28-75226664412c`, 
 
 ## Current launch gate
 
-The Worker is deployed in **demo mode**. The owner supplied GitHub OAuth credentials privately; all three secrets are installed and the OAuth start endpoint's GitHub target, callback, PKCE and extension CORS were verified. Live mode still requires a successful hosted sign-in, real search evaluation and hosted CPU measurements. Three real Gemini actions passed; the ranking-schema compatibility issue was reproduced and corrected, but a full corrected search still needs authenticated GitHub retrieval after public rate limits were reached. This is not ready to invite testers yet.
+The Worker is deployed as an **owner-only live pilot**, version `0d50ddda-2e72-42e8-9895-d01f7f6be155`. The owner supplied GitHub OAuth credentials privately; all three secrets are installed. The real GitHub → callback → extension → session flow succeeded, confirmed by the owner and numeric session identity `181932151`. Live search evaluation and hosted generation CPU measurements are still required. Three local real-Gemini actions and the corrected ranking-schema probe passed. No testers are invited yet.
 
 ## Deployment
 
@@ -38,6 +38,8 @@ npm run package
 ```
 
 Do not run the opt-in live suite without checking the owner's current free-tier/budget authorization. Models and quotas can change. No automatic retries are configured. Production generation reserves at least $0.05-equivalent of the internal allowance per action, with five actions per UTC day per user and $5-equivalent per UTC month across the app. These controls do not create a paid Google budget or guarantee an invoice amount. They apply even when the provider is free. Current model reference rates were checked November 1, 2026: Gemini 3.5 Flash-Lite $0.30 input / $2.50 output per million tokens on its paid tier. [Google pricing](https://ai.google.dev/gemini-api/docs/pricing).
+
+The beta additionally caps GitHub calls at 40 per action, leaving room for authentication, AI and accounting under Workers Free's 50-subrequest limit. The general local client defaults to an 80-call ceiling; every beta action receives the configured lower allowance. Results disclose retrieval/analysis limits. [Workers limits](https://developers.cloudflare.com/workers/platform/limits/).
 
 ## Invitations and revocation
 

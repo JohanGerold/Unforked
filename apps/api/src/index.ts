@@ -41,7 +41,7 @@ app.post('/v1/:action', async c => {
     const demo = c.env.MODE !== 'live';
     const local = c.env.ENVIRONMENT === 'development' && ['127.0.0.1', 'localhost'].includes(new URL(c.req.url).hostname);
     const session = !demo && !local ? await requireSession(c.req.raw, c.env) : null;
-    const result = demo ? { repo: data.repo, issueNumber: data.issueNumber, available: false, reasons: ['Demo mode does not verify live issue availability. Switch to a live backend first.'], checkedAt: new Date().toISOString() } : await checkIssue(data.repo, data.issueNumber, new GitHubClient(session?.githubToken || c.env.GITHUB_TOKEN, fetch, c.req.raw.signal));
+    const result = demo ? { repo: data.repo, issueNumber: data.issueNumber, available: false, reasons: ['Demo mode does not verify live issue availability. Switch to a live backend first.'], checkedAt: new Date().toISOString() } : await checkIssue(data.repo, data.issueNumber, new GitHubClient(session?.githubToken || c.env.GITHUB_TOKEN, fetch, c.req.raw.signal, Number(c.env.GITHUB_REQUEST_LIMIT || '80')));
     return c.json({ data: result, demo, requestId: data.requestId, sources: [], checkedAt: result.checkedAt });
   }
   if (!['summary', 'search', 'learning-path', 'repo-question'].includes(action)) throw new AppError('NOT_FOUND', 'Unknown action.', 404);
@@ -55,7 +55,7 @@ app.post('/v1/:action', async c => {
     const session = local ? null : await requireSession(c.req.raw, c.env);
     const model = createModel(c.env.GOOGLE_GENERATIVE_AI_API_KEY, c.env.AI_MODEL, c.req.raw.signal);
     if (session) await reserveUsage(c.env, session.userId, data.requestId, configuredCostBound(c.env));
-    const client = new GitHubClient(session?.githubToken || c.env.GITHUB_TOKEN, fetch, c.req.raw.signal);
+    const client = new GitHubClient(session?.githubToken || c.env.GITHUB_TOKEN, fetch, c.req.raw.signal, Number(c.env.GITHUB_REQUEST_LIMIT || '80'));
     try {
       if (action === 'search') { const found = await recommend(data.request!, data.profile || defaultProfile, client, model); result = found.result; evidence = found.evidence; }
       else { const e = await fetchEvidence(data.repo!, client); evidence = [e]; result = action === 'summary' ? await analyzeSummary(e, model) : action === 'learning-path' ? await buildLearningPath(data.request || `Contribute to ${repoKey(e.repo)}`, data.profile || defaultProfile, e, model) : await answerQuestion(data.question!, e, model); }

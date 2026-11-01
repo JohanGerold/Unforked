@@ -38,6 +38,13 @@ it('stops before exhausting its retrieval budget', async () => {
   const client = github(); client.remaining = 0;
   await expect(fetchEvidence(ref, client)).rejects.toMatchObject({ code: 'BUDGET_EXHAUSTED' });
 });
+it('enforces the configured retrieval allowance before sending another request', async () => {
+  let calls = 0;
+  const client = new GitHubClient(undefined, async () => { calls++; return Response.json({ ok: true }); }, undefined, 2);
+  await client.get('/repos/example/first'); await client.get('/repos/example/second');
+  await expect(client.get('/repos/example/third')).rejects.toMatchObject({ code: 'BUDGET_EXHAUSTED' });
+  expect(calls).toBe(2);
+});
 it('refuses arbitrary fetch URLs and unsafe API paths', async () => {
   const client = github();
   await expect(client.get('https://evil.test/data')).rejects.toMatchObject({ code: 'INVALID_INPUT' });

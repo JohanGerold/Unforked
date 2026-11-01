@@ -7,6 +7,7 @@ const config = JSON.parse(readFileSync(new URL('apps/api/wrangler.beta.jsonc', r
 const identity = JSON.parse(readFileSync(new URL('apps/extension/beta-identity.json', root), 'utf8'));
 const fail = message => { throw new Error(`Beta preflight: ${message}`); };
 const vars = config.vars;
+if (!Number.isSafeInteger(Number(vars.GITHUB_REQUEST_LIMIT)) || Number(vars.GITHUB_REQUEST_LIMIT) < 1 || Number(vars.GITHUB_REQUEST_LIMIT) > 40) fail('Use at most 40 GitHub requests per beta action to reserve Workers Free subrequests for authentication and AI.');
 if (vars.ENVIRONMENT !== 'production' || vars.BETA_ACCESS !== 'invite-only') fail('Production and invite-only settings are required.');
 if (!['demo', 'live'].includes(vars.MODE)) fail('Invalid mode.');
 const derived = createHash('sha256').update(Buffer.from(identity.publicKey, 'base64')).digest('hex').slice(0, 32).replace(/[0-9a-f]/g, digit => String.fromCharCode(97 + parseInt(digit, 16)));

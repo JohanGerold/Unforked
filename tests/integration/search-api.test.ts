@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { app } from '../../apps/api/src/index';
 import { buildQueries, enforceLanguageConstraint } from '../../apps/api/src/search/recommend';
 import { defaultProfile, type SearchIntent } from '@unforked/contracts';
@@ -25,4 +25,13 @@ it('rejects malformed input and missing live credentials clearly', async () => {
 it('hosted live requests require authentication even with a configured provider', async () => {
   const res = await app.request('/v1/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId: crypto.randomUUID(), request: 'Python' }) }, { MODE: 'live', ENVIRONMENT: 'production', AI_MODEL: 'test', GOOGLE_GENERATIVE_AI_API_KEY: 'test' });
   expect(res.status).toBe(401);
+});
+it('the API applies its configured GitHub allowance to live issue checks', async () => {
+  let calls = 0;
+  vi.stubGlobal('fetch', async () => { calls++; return Response.json({ private: false, archived: false, state: 'open', assignees: [] }); });
+  try {
+    const response = await app.request('http://127.0.0.1/v1/issue-check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId: crypto.randomUUID(), repo: { owner: 'example', name: 'project' }, issueNumber: 1 }) }, { MODE: 'live', ENVIRONMENT: 'development', GITHUB_REQUEST_LIMIT: '1' });
+    expect(response.status).toBe(429);
+    expect(calls).toBe(1);
+  } finally { vi.unstubAllGlobals(); }
 });
