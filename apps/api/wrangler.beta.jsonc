@@ -18,7 +18,7 @@
     "AI_MODEL": "gemini-3.5-flash-lite",
     "AI_INPUT_USD_PER_MILLION": "0.30",
     "AI_OUTPUT_USD_PER_MILLION": "2.50",
-    "DAILY_LIMIT": "10",
+    "DAILY_LIMIT": "100",
     "MONTHLY_BUDGET_MICRODOLLARS": "5000000",
     "ACTION_RESERVATION_MICRODOLLARS": "50000",
     "API_ORIGIN": "https://unforked-beta.unforked-api.workers.dev",
