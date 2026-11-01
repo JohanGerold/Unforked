@@ -35,3 +35,15 @@ it('the API applies its configured GitHub allowance to live issue checks', async
     expect(calls).toBe(1);
   } finally { vi.unstubAllGlobals(); }
 });
+it('a live local-provider search works without a Google key and declares its provider', async () => {
+  vi.stubGlobal('fetch', async (url: RequestInfo | URL, init?: RequestInit) => {
+    const target = new URL(String(url));
+    if (target.origin === 'https://gateway.example.test') { const input = JSON.parse(String(init?.body)); return Response.json({ requestId: input.requestId, model: 'qwen3.5:4b', data: { goal: 'Python tools', languages: ['Python'], concepts: [], interests: [], availableHours: 4, hardConstraints: [], preferences: [], queries: ['python tools'] }, usage: { inputTokens: 60, outputTokens: 70 } }); }
+    if (target.origin === 'https://api.github.com') return Response.json({ items: [] });
+    throw new Error('No cloud model call is allowed');
+  });
+  try {
+    const response = await app.request('http://127.0.0.1/v1/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId: crypto.randomUUID(), request: 'Python tools' }) }, { MODE: 'live', ENVIRONMENT: 'development', AI_PROVIDER: 'ollama', LOCAL_AI_ORIGIN: 'https://gateway.example.test', LOCAL_AI_KEY: 'a'.repeat(64) });
+    expect(response.status).toBe(200); expect((await response.json()).aiProvider).toBe('ollama');
+  } finally { vi.unstubAllGlobals(); }
+});

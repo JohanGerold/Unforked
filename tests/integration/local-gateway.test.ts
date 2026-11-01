@@ -58,3 +58,18 @@ it('propagates deadlines to inference and rejects truncated or redirected output
     expect((await gateway.fetch(request())).status).toBeGreaterThanOrEqual(400);
   }
 });
+it('rejects impossible token counts and keeps the active slot until cancellation settles', async () => {
+  const invalid = createGateway({ token, fetcher: async () => Response.json({ message: { content: '{}' }, done_reason: 'stop', prompt_eval_count: -1, eval_count: 1 }) });
+  expect((await invalid.fetch(request())).status).toBe(502);
+  let calls = 0; let release!: () => void;
+  const gateway = createGateway({ token, fetcher: async (_url, init) => {
+    calls++;
+    if (calls === 1) await new Promise<void>((resolve, reject) => { release = () => reject(new Error('cancelled')); init!.signal!.addEventListener('abort', () => {}, { once: true }); });
+    return answer();
+  } });
+  const controller = new AbortController(); const first = gateway.fetch(request(payload(), controller.signal));
+  await vi.waitFor(() => expect(calls).toBe(1));
+  const second = gateway.fetch(request()); controller.abort();
+  await new Promise(resolve => setTimeout(resolve, 10)); expect(calls).toBe(1);
+  release(); expect((await first).status).toBe(499); expect((await second).status).toBe(200); expect(calls).toBe(2);
+});

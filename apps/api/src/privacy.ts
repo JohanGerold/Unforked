@@ -2,6 +2,7 @@ import type { Env } from './env';
 
 export function betaInformation(env: Env): string {
   const contact = env.SUPPORT_EMAIL || 'Contact the person who invited you before using this beta.';
+  const generation = env.AI_PROVIDER === 'ollama' ? 'Local AI is selected. Requested text and public repository evidence are sent through an authenticated Cloudflare connection to the beta owner’s laptop and processed by Ollama/Qwen in memory. The gateway does not persist prompts or answers. GitHub tokens are not sent to the laptop. There is no automatic Google fallback. The laptop must be awake and online; bounded queueing and request allowances apply.' : 'Google AI is selected. Requested text and public repository evidence are sent to Google. Under Google’s free-tier terms, submitted content may be used to improve its products. See https://ai.google.dev/gemini-api/terms and https://ai.google.dev/gemini-api/docs/pricing .';
   return `Unforked — private beta
 
 Find public GitHub projects, understand repositories, and plan contributions.
@@ -11,7 +12,7 @@ Privacy policy — updated November 1, 2026
 
 Your profile and saved repositories stay in Chrome local storage on your device. Clear them in Settings or uninstall the extension. Circle gestures are processed locally. Unforked does not upload screenshots or inspect other websites.
 
-When you request an analysis, your request/question, relevant profile fields and the selected public repository are sent to this backend. Public repository documentation and bounded activity samples are retrieved from GitHub. Live AI analysis sends this material to Google. Under Google's free-tier terms, submitted content may be used to improve its products. Avoid personal or confidential information. See https://ai.google.dev/gemini-api/terms and https://ai.google.dev/gemini-api/docs/pricing . Demo responses do not call Google.
+When you request an analysis, your request/question, relevant profile fields and the selected public repository are sent to this backend. Public repository documentation and bounded activity samples are retrieved from GitHub. ${generation} Avoid personal or confidential information. Demo responses do not call an AI provider.
 
 GitHub handles sign-in. Cloudflare hosts the API and D1 database. We store your numeric GitHub ID, invitation status and username, hashed session tokens, encrypted GitHub access tokens, OAuth state, request IDs, UTC usage dates and allowance reservations. Profiles, raw prompts and repository text are not saved in D1 or application logs. Provider services process network metadata under their own terms. No advertising or tracking analytics are installed.
 

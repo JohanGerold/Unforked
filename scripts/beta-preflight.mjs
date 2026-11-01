@@ -13,7 +13,8 @@ if (!['demo', 'live'].includes(vars.MODE)) fail('Invalid mode.');
 const derived = createHash('sha256').update(Buffer.from(identity.publicKey, 'base64')).digest('hex').slice(0, 32).replace(/[0-9a-f]/g, digit => String.fromCharCode(97 + parseInt(digit, 16)));
 if (identity.extensionId !== derived || vars.EXTENSION_ID !== derived) fail('Extension identities do not match.');
 if (!config.d1_databases?.some(db => db.binding === 'DB' && /^[\da-f-]{36}$/.test(db.database_id))) fail('DB binding is required.');
-for (const key of ['GOOGLE_GENERATIVE_AI_API_KEY', 'GITHUB_CLIENT_SECRET', 'TOKEN_ENCRYPTION_KEY', 'GITHUB_TOKEN']) if (key in vars) fail(`${key} must be a secret, not a config variable.`);
+for (const key of ['GOOGLE_GENERATIVE_AI_API_KEY', 'GITHUB_CLIENT_SECRET', 'TOKEN_ENCRYPTION_KEY', 'GITHUB_TOKEN', 'LOCAL_AI_KEY']) if (key in vars) fail(`${key} must be a secret, not a config variable.`);
+if (!['gemini', 'ollama'].includes(vars.AI_PROVIDER)) fail('Explicit AI_PROVIDER must be gemini or ollama.');
 for (const key of ['AI_INPUT_USD_PER_MILLION', 'AI_OUTPUT_USD_PER_MILLION', 'DAILY_LIMIT', 'MONTHLY_BUDGET_MICRODOLLARS', 'ACTION_RESERVATION_MICRODOLLARS']) if (!(Number(vars[key]) > 0)) fail(`${key} must be positive.`);
 if (vars.API_ORIGIN) { const url = new URL(vars.API_ORIGIN); if (url.protocol !== 'https:' || url.origin !== vars.API_ORIGIN || url.username || url.password) fail('API_ORIGIN must be an exact HTTPS origin.'); }
 if (vars.MODE === 'live' && (!vars.API_ORIGIN || !vars.GITHUB_CLIENT_ID || !vars.AI_MODEL)) fail('Live configuration is incomplete.');

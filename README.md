@@ -2,7 +2,7 @@
 
 A GitHub-only Chrome extension for finding your next open-source contribution. Describe your skills and goals, explore a grounded shortlist, understand a repository, and build a learning path. Circle repository links on GitHub to get context without leaving the page.
 
-**Status:** Local MVP with an explicit demonstration mode, a live GitHub/AI backend, public-only OAuth, and durable usage-limit code. Nothing has been deployed or published. Live model quality and production hosting performance still need evaluation with the chosen provider and credentials.
+**Status:** Owner-only hosted beta with an explicit demonstration mode, public-only GitHub OAuth, and durable usage limits. The backend supports Gemini or an authenticated Ollama/Qwen gateway on the owner's laptop, with no automatic fallback. Chrome Web Store publication, broader recommendation quality and shared capacity remain separate release gates.
 
 ## Try it locally
 
@@ -48,6 +48,8 @@ GITHUB_TOKEN=your-public-read-token
 Choose an available model in your provider account; do not copy an outdated model identifier. Restart the API after changing environment variables. The health banner switches to live mode. Missing keys produce an actionable error rather than substituting fake AI answers. A free provider quota may be sufficient for testing, subject to that provider's current limits and data-use terms.
 
 Keys never go in the extension, public `.env` variables, or Git. Do not enter private code or secrets in contribution requests.
+
+For the shared laptop provider, see [local AI setup and daily use](docs/local-ai.md). Once configured, `npm run local-ai:share` starts the gateway and protected temporary tunnel and syncs its connection to the hosted backend. The selected provider is visible in Unforked Settings.
 
 ## Features
 

@@ -2,6 +2,8 @@ export interface DbResult { success: boolean; meta: { changes?: number }; result
 export interface DbStatement { bind(...values: unknown[]): DbStatement; first<T = any>(): Promise<T | null>; all<T = any>(): Promise<{ results: T[] }>; run(): Promise<DbResult> }
 export interface Database { prepare(sql: string): DbStatement; batch(statements: DbStatement[]): Promise<DbResult[]> }
 export interface Env {
+  AI_PROVIDER?: string; LOCAL_AI_ORIGIN?: string; LOCAL_AI_KEY?: string;
+  OWNER_GITHUB_ID?: string; OWNER_DAILY_LIMIT?: string; LOCAL_DAILY_LIMIT?: string; LOCAL_MONTHLY_ACTION_LIMIT?: string;
   BETA_ACCESS?: string; SUPPORT_EMAIL?: string;
   GITHUB_REQUEST_LIMIT?: string;
   MODE?: string; ENVIRONMENT?: string; AI_MODEL?: string; GOOGLE_GENERATIVE_AI_API_KEY?: string; GITHUB_TOKEN?: string;

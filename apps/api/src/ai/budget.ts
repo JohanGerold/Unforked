@@ -1,7 +1,8 @@
-import { AppError } from '@unforked/contracts';
+import { AppError, INPUT_OVERHEAD_BYTES } from '@unforked/contracts';
 import type { Env } from '../env';
-export function generationInputBound(promptBytes: number, schemaBytes: number): number { return promptBytes + schemaBytes + 1024; }
+export function generationInputBound(promptBytes: number, schemaBytes: number): number { return promptBytes + schemaBytes + INPUT_OVERHEAD_BYTES; }
 export class GenerationBudget {
+  constructor(private readonly perCallOutput = 1800) {}
   private calls = 0; private remainingInput = 30000; private remainingOutput = 3000;
   get inputBytesRemaining(): number { return this.remainingInput; }
   start(promptBytes: number, schemaBytes: number): number {
@@ -9,7 +10,7 @@ export class GenerationBudget {
     const inputBound = generationInputBound(promptBytes, schemaBytes);
     if (this.calls >= 3 || inputBound > this.remainingInput || this.remainingOutput < 100) throw new AppError('BUDGET_EXHAUSTED', 'This action reached its analysis limit. Try a narrower request.', 429);
     this.calls++; this.remainingInput -= inputBound;
-    const output = Math.min(1800, this.remainingOutput); this.remainingOutput -= output; return output;
+    const output = Math.min(this.perCallOutput, this.remainingOutput); this.remainingOutput -= output; return output;
   }
   finish(reserved: number, used: number) { if (used < 0 || used > reserved) throw new AppError('BUDGET_EXHAUSTED', 'The provider exceeded the configured generation limit.', 429); this.remainingOutput += reserved - used; }
 }

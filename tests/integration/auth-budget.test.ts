@@ -1,14 +1,8 @@
-import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { database } from '../helpers/database';
 import { expect, it } from 'vitest';
 import { reserveUsage } from '../../apps/api/src/usage/limits';
 import { hash, seal, unseal, requireSession, exchangeCode, logout, oauthCallback } from '../../apps/api/src/auth/security';
-import type { Database, Env } from '../../apps/api/src/env';
-function database(): Database {
-  const sql = new DatabaseSync(':memory:'); sql.exec(readFileSync(new URL('../../apps/api/migrations/0001_sessions_usage.sql', import.meta.url), 'utf8'));
-  const prepare = (query: string): any => { let args: any[] = []; return { bind(...values: any[]) { args = values; return this; }, async first() { return sql.prepare(query).get(...args) || null; }, async all() { return { results: sql.prepare(query).all(...args) }; }, async run() { const result = sql.prepare(query).run(...args); return { success: true, meta: { changes: Number(result.changes) } }; } }; };
-  return { prepare, async batch(statements) { sql.exec('BEGIN'); try { const results = []; for (const s of statements) results.push(await s.run()); sql.exec('COMMIT'); return results; } catch (e) { sql.exec('ROLLBACK'); throw e; } } };
-}
+import type { Env } from '../../apps/api/src/env';
 const env = (): Env => ({ DB: database(), TOKEN_ENCRYPTION_KEY: 'a'.repeat(64), EXTENSION_ID: 'a'.repeat(32), GITHUB_CLIENT_ID: 'client', GITHUB_CLIENT_SECRET: 'secret', API_ORIGIN: 'https://api.example.test', MONTHLY_BUDGET_MICRODOLLARS: '100', ACTION_RESERVATION_MICRODOLLARS: '60', DAILY_LIMIT: '10' });
 it('concurrent reservations cannot exceed the global budget', async () => {
   const config = env(); const results = await Promise.allSettled([reserveUsage(config, 'u1', crypto.randomUUID()), reserveUsage(config, 'u2', crypto.randomUUID())]);

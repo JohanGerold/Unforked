@@ -51,7 +51,7 @@ Data is handled: local skills/preferences and saved snapshots; explicitly submit
 
 The implementation has no sale, advertising, creditworthiness, or unrelated-use functionality. The publisher must verify model-provider data-use settings and operational retention before certifying store disclosures.
 
-**Policy:** https://unforked-beta.unforked-api.workers.dev/privacy. Source disclosure is maintained in `docs/privacy.md`. Support: johangerold385@gmail.com. Google free-tier data use, encrypted authentication storage and hourly cleanup of expired authentication/90-day usage records must match the store disclosure form.
+**Policy:** https://unforked-beta.unforked-api.workers.dev/privacy. Source disclosure is maintained in `docs/privacy.md`. Support: johangerold385@gmail.com. Disclose the selected local provider: requested text and public evidence travel through authenticated Cloudflare Tunnel to the owner's laptop, where Ollama/Qwen processes them in memory. There is no automatic cloud fallback. Explicit Gemini selection uses Google's free-tier data terms. Provider choice, encrypted authentication storage and hourly cleanup of expired authentication/90-day usage records must match the store disclosure form. The extension only contacts its existing hosted API; it gains no tunnel or localhost host permissions.
 
 ## Distribution and publisher
 
@@ -75,7 +75,7 @@ Official references: [Registration](https://developer.chrome.com/docs/webstore/r
 
 - Complete the remaining hosted acceptance, actual free-tier CPU/capacity profiling and broader matching-quality checks. The owner reports the core journeys working; that is not load-test evidence.
 - Verify deployed cleanup and rollback, and match the live policy/retention/support details in the store forms.
-- Separate owner/tester allowances and agree sufficient shared capacity before inviting friends. The current 100-action daily setting applies globally; only the owner is currently invited. With the current reservation floor and monthly ceiling, the app supports at most 100 generation actions per month in total, not per user.
+- Agree sufficient shared capacity before inviting friends. Local mode separates the owner's 100 actions/day from invited friends' 20/day, with 1,000 shared local actions/month. Failed and cancelled actions retain their reservation. Gemini retains a separate reference budget and prior records. Only the owner is currently invited. A temporary Quick Tunnel is a development connection; stable availability and real shared-load acceptance remain release prerequisites.
 - Verify the store identity, OAuth and final HTTPS permissions; refresh screenshots and demo/live labeling.
 - Inspect the packaged ZIP for secrets and development-only files; load that exact build.
 - Submit only after the owner requests publication.

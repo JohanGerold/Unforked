@@ -2,9 +2,24 @@ import { expect, it, vi } from 'vitest';
 import { createModel } from '../../apps/api/src/ai/provider';
 import { GenerationBudget } from '../../apps/api/src/ai/budget';
 import { z } from 'zod';
-import { recommend } from '../../apps/api/src/search/recommend';
+import { recommend, rankSchema, indexedRankSchema } from '../../apps/api/src/search/recommend';
 import { GitHubClient } from '../../apps/api/src/github/client';
 import { defaultProfile } from '@unforked/contracts';
+it('keeps ranking explanations short enough for the local generation slot', () => {
+  const field = z.toJSONSchema(rankSchema) as any;
+  const match = field.properties.matches.items.properties;
+  expect(match.purpose.maxLength).toBeLessThanOrEqual(180);
+  for (const name of ['fitReasons', 'skillGaps', 'limitations']) {
+    expect(match[name].maxItems).toBeLessThanOrEqual(2);
+    expect(match[name].items.maxLength).toBeLessThanOrEqual(120);
+  }
+});
+it('binds a local citation to its selected candidate inside the generation schema', () => {
+  const schema = indexedRankSchema([{ sources: [{ id: 'first:readme' }] }, { sources: [{ id: 'second:readme' }] }] as any);
+  const match = { candidateIndex: 0, purpose: 'A tool', readiness: 'learn_first', fitReasons: [], skillGaps: [], issueNumber: null, limitations: [], sourceIds: ['second:readme'] };
+  expect(schema.safeParse({ matches: [match], noStrongMatch: true, limitations: [] }).success).toBe(false);
+  expect(schema.safeParse({ matches: [{ ...match, sourceIds: ['first:readme'] }], noStrongMatch: true, limitations: [] }).success).toBe(true);
+});
 function setup(languages: Record<string, number>, archived = false) {
   const queries: string[] = [];
   const client = new GitHubClient(undefined, async input => {
@@ -30,6 +45,20 @@ it('returns an honest empty result when verified candidates violate a hard langu
 it('filters a repository archived between search and evidence inspection', async () => {
   const { client, model } = setup({ Python: 100 }, true); const result = await recommend('Python only', defaultProfile, client, model);
   expect(result.result.matches).toEqual([]);
+});
+it('resolves local ranking identities from checked candidates and removes duplicate selections', async () => {
+  const { client, model: fixture } = setup({ Python: 100 });
+  let calls = 0;
+  const model = { rankingStyle: 'candidate-index' as const, async generate() {
+    if (++calls === 1) return fixture.generate();
+    const match = { candidateIndex: 0, purpose: 'Python tooling', readiness: 'small_stretch', fitReasons: ['Contains Python'], skillGaps: [], issueNumber: null, limitations: [], sourceIds: ['example/mixed:repo'] };
+    return { matches: [match, match], noStrongMatch: false, limitations: [] };
+  } };
+  const result = await recommend('Python only', defaultProfile, client, model);
+  expect(result.result.matches).toHaveLength(1);
+  expect(result.result.matches[0].repo).toEqual({ owner: 'example', name: 'mixed' });
+  expect(result.result.matches[0].checkedAt).toBe(result.evidence[0].checkedAt);
+  expect(result.result.searchLimitations).toContain('Repeated local AI selections were removed.');
 });
 it('ranking completes through the Google adapter with bounded nested output arrays', async () => {
   const { client, model: fixture } = setup({ Python: 100 });

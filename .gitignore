@@ -11,3 +11,4 @@ test-results/
 .superpowers/
 dist/
 *.log
+.local-tools/

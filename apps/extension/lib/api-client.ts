@@ -11,7 +11,7 @@ export async function callApi(action: string, input: ApiInput, signal: AbortSign
   const body = await response.json().catch(() => null);
   if (!response.ok) throw new ApiError(body?.error?.code || 'SERVER_ERROR', body?.error?.userMessage || 'The action could not finish. Try again.', body?.error?.retryAfterSeconds);
   const schema = action === 'search' ? SearchResultSchema : action === 'summary' ? SummarySchema : action === 'learning-path' ? LearningSchema : action === 'issue-check' ? IssueCheckSchema : AnswerSchema;
-  const envelope = z.object({ data: schema, demo: z.boolean(), requestId: z.string(), sources: SourceSchema.array().max(80), checkedAt: z.string() }).safeParse(body);
+  const envelope = z.object({ data: schema, demo: z.boolean(), aiProvider: z.enum(['gemini', 'ollama']).optional(), requestId: z.string(), sources: SourceSchema.array().max(80), checkedAt: z.string() }).safeParse(body);
   if (!envelope.success || envelope.data.requestId !== input.requestId) throw new ApiError('INVALID_RESPONSE', 'The response could not be verified. Please retry.');
   return envelope.data;
 }

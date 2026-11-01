@@ -30,7 +30,7 @@ export const IssueCheckSchema = z.object({ repo: RepoRefSchema, issueNumber: z.n
 export type IssueCheck = z.infer<typeof IssueCheckSchema>;
 export const RequestSchema = z.object({ requestId: z.string().uuid(), repo: RepoRefSchema.optional(), request: z.string().trim().min(1).max(2000).optional(), profile: ProfileSchema.optional(), question: z.string().trim().min(1).max(1000).optional(), match: MatchSchema.optional(), issueNumber: z.number().int().positive().optional() });
 export type ApiInput = z.infer<typeof RequestSchema>;
-export type ApiResponse<T> = { data: T; demo: boolean; requestId: string; sources: Source[]; checkedAt: string };
+export type ApiResponse<T> = { data: T; demo: boolean; aiProvider?: 'gemini' | 'ollama'; requestId: string; sources: Source[]; checkedAt: string };
 export const repoKey = (repo: RepoRef) => `${repo.owner}/${repo.name}`.toLowerCase();
 export const repoUrl = (repo: RepoRef) => `https://github.com/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;
 export class AppError extends Error {

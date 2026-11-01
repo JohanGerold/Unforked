@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { AppError, RequestSchema, defaultProfile, repoKey, type Evidence } from '@unforked/contracts';
-import { createModel } from './ai/provider';
+import { createConfiguredModel, providerHealth } from './ai/configured-provider';
+import { selectedProvider } from './ai/provider-selection';
 import { analyzeSummary, buildLearningPath, answerQuestion } from './ai/analysis';
 import { GitHubClient } from './github/client';
 import { fetchEvidence } from './github/evidence';
@@ -24,7 +25,7 @@ app.use('*', async (c, next) => {
   await next();
 });
 app.use('/v1/*', bodyLimit({ maxSize: 64000, onError: c => c.json({ error: { code: 'INVALID_INPUT', userMessage: 'This request is too large.' } }, 413) }));
-app.get('/health', c => c.json({ name: 'Unforked', mode: c.env.MODE === 'live' ? 'live' : 'demo', configured: !!(c.env.AI_MODEL && c.env.GOOGLE_GENERATIVE_AI_API_KEY) }));
+app.get('/health', async c => c.json({ name: 'Unforked', mode: c.env.MODE === 'live' ? 'live' : 'demo', ...await providerHealth(c.env) }));
 app.get('/', c => c.text(betaInformation(c.env)));
 app.get('/privacy', c => c.text(betaInformation(c.env)));
 app.use('/auth/*', bodyLimit({ maxSize: 4000 }));
@@ -42,7 +43,7 @@ app.post('/v1/:action', async c => {
     const local = c.env.ENVIRONMENT === 'development' && ['127.0.0.1', 'localhost'].includes(new URL(c.req.url).hostname);
     const session = !demo && !local ? await requireSession(c.req.raw, c.env) : null;
     const result = demo ? { repo: data.repo, issueNumber: data.issueNumber, available: false, reasons: ['Demo mode does not verify live issue availability. Switch to a live backend first.'], checkedAt: new Date().toISOString() } : await checkIssue(data.repo, data.issueNumber, new GitHubClient(session?.githubToken || c.env.GITHUB_TOKEN, fetch, c.req.raw.signal, Number(c.env.GITHUB_REQUEST_LIMIT || '80')));
-    return c.json({ data: result, demo, requestId: data.requestId, sources: [], checkedAt: result.checkedAt });
+    return c.json({ data: result, demo, aiProvider: demo ? undefined : selectedProvider(c.env), requestId: data.requestId, sources: [], checkedAt: result.checkedAt });
   }
   if (!['summary', 'search', 'learning-path', 'repo-question'].includes(action)) throw new AppError('NOT_FOUND', 'Unknown action.', 404);
   if (action === 'search' && !data.request || action !== 'search' && !data.repo || action === 'repo-question' && !data.question) throw new AppError('INVALID_INPUT', 'This action is missing a repository or question.');
@@ -53,8 +54,8 @@ app.post('/v1/:action', async c => {
   } else {
     const local = c.env.ENVIRONMENT === 'development' && ['127.0.0.1', 'localhost'].includes(new URL(c.req.url).hostname);
     const session = local ? null : await requireSession(c.req.raw, c.env);
-    const model = createModel(c.env.GOOGLE_GENERATIVE_AI_API_KEY, c.env.AI_MODEL, c.req.raw.signal);
-    if (session) await reserveUsage(c.env, session.userId, data.requestId, configuredCostBound(c.env));
+    const model = createConfiguredModel(c.env, c.req.raw.signal);
+    if (session) await reserveUsage(c.env, session.userId, data.requestId, selectedProvider(c.env) === 'ollama' ? 0 : configuredCostBound(c.env));
     const client = new GitHubClient(session?.githubToken || c.env.GITHUB_TOKEN, fetch, c.req.raw.signal, Number(c.env.GITHUB_REQUEST_LIMIT || '80'));
     try {
       if (action === 'search') { const found = await recommend(data.request!, data.profile || defaultProfile, client, model); result = found.result; evidence = found.evidence; }
@@ -62,7 +63,7 @@ app.post('/v1/:action', async c => {
       if (session) await finishUsage(c.env, session.userId, data.requestId, false);
     } catch (e) { if (session) await finishUsage(c.env, session.userId, data.requestId, true); throw e; }
   }
-  return c.json({ data: result, demo, requestId: data.requestId, sources: evidence.flatMap(e => e.sources), checkedAt: new Date().toISOString() });
+  return c.json({ data: result, demo, aiProvider: demo ? undefined : selectedProvider(c.env), requestId: data.requestId, sources: evidence.flatMap(e => e.sources), checkedAt: new Date().toISOString() });
 });
 app.onError((e, c) => {
   if (!(e instanceof AppError)) {
