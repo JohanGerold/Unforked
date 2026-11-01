@@ -24,6 +24,6 @@ if (process.argv.includes('--manifest')) {
   if (manifest.key !== identity.publicKey || manifest.manifest_version !== 3) fail('Built identity/manifest version mismatch.');
   const expected = ['https://github.com/*', `${vars.API_ORIGIN}/*`].sort();
   if (JSON.stringify([...manifest.host_permissions].sort()) !== JSON.stringify(expected)) fail('Built hosts do not match the beta API and GitHub.');
-  if (manifest.permissions.some(permission => !['sidePanel', 'storage', 'contextMenus', 'identity'].includes(permission))) fail('Unexpected extension permission.');
+  if (manifest.permissions.some(permission => !['sidePanel', 'storage', 'contextMenus', 'identity', 'activeTab'].includes(permission))) fail('Unexpected extension permission.');
 }
 console.log(`Beta preflight passed: ${config.name}, ${vars.MODE}, ${derived}`);

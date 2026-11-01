@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AppError, LOCAL_BODY_LIMIT, LOCAL_MAX_OUTPUT, LOCAL_MODEL, LocalGenerateSchema, LocalResponseSchema, readBoundedJson } from '@unforked/contracts';
+import { AppError, LOCAL_BODY_LIMIT, LOCAL_MAX_OUTPUT, LOCAL_MODEL, LocalGenerateSchema, LocalVisionGenerateSchema, LocalResponseSchema, readBoundedJson, VISION_BODY_LIMIT, VISION_MAX_OUTPUT, VISION_IMAGE_TOKENS, type CircleImage } from '@unforked/contracts';
 import type { Env } from '../env';
 import type { Model } from './analysis';
 import { GenerationBudget } from './budget';
@@ -11,19 +11,19 @@ export function localConnection(env: Env) {
   if ((!loopback && origin.protocol !== 'https:') || origin.origin !== env.LOCAL_AI_ORIGIN || origin.username || origin.password) throw new AppError('LOCAL_AI_OFFLINE', 'The local AI connection must use its configured secure origin.', 503);
   return { origin: origin.origin, headers: { Authorization: `Bearer ${env.LOCAL_AI_KEY}`, 'Content-Type': 'application/json' } };
 }
-export function createLocalModel(env: Env, signal?: AbortSignal, fetcher: typeof fetch = fetch): Model {
-  const connection = localConnection(env); const budget = new GenerationBudget(LOCAL_MAX_OUTPUT);
+export function createLocalModel(env: Env, signal?: AbortSignal, fetcher: typeof fetch = fetch, image?: CircleImage): Model {
+  const connection = localConnection(env); const budget = new GenerationBudget(image ? VISION_MAX_OUTPUT : LOCAL_MAX_OUTPUT);
   return { rankingStyle: 'candidate-index', get remainingInputBytes() { return budget.inputBytesRemaining; }, async generate(schema, prompt) {
     if (signal?.aborted) throw signal.reason;
     const jsonSchema = z.toJSONSchema(schema); const encode = new TextEncoder();
-    const output = budget.start(encode.encode(prompt).byteLength, encode.encode(JSON.stringify(jsonSchema)).byteLength);
-    const request = LocalGenerateSchema.safeParse({ requestId: crypto.randomUUID(), prompt, schema: jsonSchema, maxOutputTokens: output });
+    const output = budget.start(encode.encode(prompt).byteLength + (image ? VISION_IMAGE_TOKENS : 0), encode.encode(JSON.stringify(jsonSchema)).byteLength);
+    const request = (image ? LocalVisionGenerateSchema : LocalGenerateSchema).safeParse({ requestId: crypto.randomUUID(), prompt, schema: jsonSchema, maxOutputTokens: output, ...(image ? { image } : {}) });
     if (!request.success) throw new AppError('BUDGET_EXHAUSTED', 'This analysis is too large for the local AI. Try a narrower request.', 429);
     const body = JSON.stringify(request.data);
-    if (encode.encode(body).byteLength > LOCAL_BODY_LIMIT) throw new AppError('BUDGET_EXHAUSTED', 'This analysis is too large for the local connection. Try a narrower request.', 429);
+    if (encode.encode(body).byteLength > (image ? VISION_BODY_LIMIT : LOCAL_BODY_LIMIT)) throw new AppError('BUDGET_EXHAUSTED', 'This analysis is too large for the local connection. Try a narrower request.', 429);
     const timeout = AbortSignal.timeout(125000);
     try {
-      const response = await fetcher(`${connection.origin}/v1/generate`, { method: 'POST', headers: connection.headers, body, redirect: 'manual', signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+      const response = await fetcher(`${connection.origin}/v1/${image ? 'vision' : 'generate'}`, { method: 'POST', headers: connection.headers, body, redirect: 'manual', signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
       const payload = await readBoundedJson(response, 128000);
       if (!response.ok) {
         const code = payload?.error?.code;
@@ -44,11 +44,12 @@ export function createLocalModel(env: Env, signal?: AbortSignal, fetcher: typeof
     }
   } };
 }
-export async function localHealth(env: Env, fetcher: typeof fetch = fetch): Promise<{ configured: boolean; aiAvailable: boolean }> {
-  let connection; try { connection = localConnection(env); } catch { return { configured: false, aiAvailable: false }; }
+export async function localHealth(env: Env, fetcher: typeof fetch = fetch): Promise<{ configured: boolean; aiAvailable: boolean; visionAvailable: boolean }> {
+  let connection; try { connection = localConnection(env); } catch { return { configured: false, aiAvailable: false, visionAvailable: false }; }
   try {
     const response = await fetcher(`${connection.origin}/health`, { headers: connection.headers, redirect: 'manual', signal: AbortSignal.timeout(2500) });
     const body = await readBoundedJson(response, 4096);
-    return { configured: true, aiAvailable: response.ok && body.ready === true && body.model === LOCAL_MODEL };
-  } catch { return { configured: true, aiAvailable: false }; }
+    const ready = response.ok && body.ready === true && body.model === LOCAL_MODEL;
+    return { configured: true, aiAvailable: ready, visionAvailable: ready && body.visionAvailable === true };
+  } catch { return { configured: true, aiAvailable: false, visionAvailable: false }; }
 }

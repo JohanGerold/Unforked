@@ -10,7 +10,7 @@ Access to live actions is restricted to invited GitHub accounts.
 
 Privacy policy — updated November 2, 2026
 
-Your profile and saved repositories stay in Chrome local storage on your device. Clear them in Settings or uninstall the extension. Circle gestures are processed locally. Unforked does not upload screenshots or inspect other websites.
+Your profile and saved repositories stay in Chrome local storage on your device. Clear them in Settings or uninstall the extension. Circle gestures are processed locally. In image mode, Chrome captures the visible GitHub tab locally, masks/crops the selected shape and shows a preview. Only when you choose Explain image are the cropped JPEG, optional question and GitHub page URL sent through this backend to the owner's local model. The full viewport is never uploaded. Image explanations are local-only and currently support public repository pages; settings and draft editors are excluded. Crops use temporary Chrome session storage for handoff and panel memory until discarded or the page context changes; they are not saved with your repositories, in D1 or in application logs. Unforked does not inspect other websites or capture continuously.
 
 When you request an analysis, your request/question, relevant profile fields and the selected public repository are sent to this backend. Public repository documentation and bounded activity samples are retrieved from GitHub. Knowledge roadmaps additionally inspect selected public dependency manifests and source-code snippets to identify languages, concepts and libraries. Repository files are treated as data and never executed. ${generation} Avoid personal or confidential information. Demo responses do not call an AI provider.
 

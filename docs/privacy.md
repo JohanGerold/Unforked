@@ -8,6 +8,10 @@ Your language skills, known concepts, interests, Git experience, available time,
 
 The extension reads GitHub page URLs and repository links to identify the project you select. Circle gestures are processed locally. It does not request browser history, continuously upload screenshots, or inspect other websites.
 
+Image mode uses Chrome's user-invoked `activeTab` permission to capture the visible GitHub tab locally. It crops to the selected bounds, masks pixels outside the drawn polygon, resizes/encodes one bounded JPEG, then shows a preview. Nothing is uploaded until you choose **Explain image**. Only that crop, your optional question and the repository page URL pass through the authenticated backend to the owner's local Qwen vision model. The full viewport stays on your device. Settings and draft-editor pages are excluded, and the backend checks that the repository is public before forwarding the image to the model. Image actions never fall back to Google.
+
+Crops use Chrome session storage for the temporary handoff to the sidebar, then are removed when consumed. Pending selections become unusable after30seconds and are cleared on tab navigation/switch/closure in their window. A displayed image and its explanation live in panel memory until discarded, the page context changes or the panel closes. They are not added to Chrome local storage, saved repositories, D1 or application logs. No image history is kept.
+
 ## Requested analysis
 
 When you explicitly request an action, the selected repository identity, typed request/question, and relevant profile fields are sent to the configured Unforked backend. The backend retrieves public GitHub documentation and bounded activity samples. Settings identifies the selected AI provider.

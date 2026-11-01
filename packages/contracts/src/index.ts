@@ -1,6 +1,9 @@
 import { z } from 'zod';
+import { CircleImageSchema } from './vision';
+import { parseRepoRef, imagePageRepo } from './repo-ref';
 export * from './local-ai';
-export { parseRepoRef } from './repo-ref';
+export * from './vision';
+export { parseRepoRef, imagePageRepo };
 const text = z.string().trim().min(1).max(2000);
 const items = z.array(text).max(20);
 export const RepoRefSchema = z.object({ owner: z.string().regex(/^[a-z\d][a-z\d-]{0,38}$/i), name: z.string().regex(/^[\w.-]{1,100}$/).refine(v => v !== '.' && v !== '..') });
@@ -35,6 +38,12 @@ export const IssueCheckSchema = z.object({ repo: RepoRefSchema, issueNumber: z.n
 export type IssueCheck = z.infer<typeof IssueCheckSchema>;
 export const RequestSchema = z.object({ requestId: z.string().uuid(), repo: RepoRefSchema.optional(), request: z.string().trim().min(1).max(2000).optional(), profile: ProfileSchema.optional(), question: z.string().trim().min(1).max(1000).optional(), match: MatchSchema.optional(), issueNumber: z.number().int().positive().optional() });
 export type ApiInput = z.infer<typeof RequestSchema>;
+export const ImageSelectionSchema = z.object({ repo: RepoRefSchema, pageUrl: z.string().url().max(1000), image: CircleImageSchema }).strict().refine(input => {
+  const ref = imagePageRepo(input.pageUrl);
+  return ref?.owner.toLowerCase() === input.repo.owner.toLowerCase() && ref?.name.toLowerCase() === input.repo.name.toLowerCase();
+}, 'Image explanations require the matching public GitHub repository page.');
+export const VisionRequestSchema = ImageSelectionSchema.safeExtend({ requestId: z.string().uuid(), question: z.string().trim().max(600).optional() });
+export type ImageSelection = z.infer<typeof ImageSelectionSchema>;
 export type ApiResponse<T> = { data: T; demo: boolean; aiProvider?: 'gemini' | 'ollama'; requestId: string; sources: Source[]; checkedAt: string };
 export const repoKey = (repo: RepoRef) => `${repo.owner}/${repo.name}`.toLowerCase();
 export const repoUrl = (repo: RepoRef) => `https://github.com/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;

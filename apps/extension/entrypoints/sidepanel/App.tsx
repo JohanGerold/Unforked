@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { defaultProfile, parseRepoRef, repoKey, repoUrl, type ContributorProfile, type Match, type RepoRef, type Source, type ApiResponse, type Summary, type SearchResult, type LearningPath, type RepoAnswer, type IssueCheck } from '@unforked/contracts';
+import { defaultProfile, parseRepoRef, repoKey, repoUrl, type ContributorProfile, type Match, type RepoRef, type Source, type ApiResponse, type Summary, type SearchResult, type LearningPath, type RepoAnswer, type IssueCheck, type ImageSelection, type VisionAnswer } from '@unforked/contracts';
 import { localStore, type SavedMatch } from '../../lib/storage';
 import { RequestGate } from '../../lib/request-state';
 import { KnowledgeRoadmap } from './KnowledgeRoadmap';
 import { apiOrigin, callApi, ApiError } from '../../lib/api-client';
 import { signIn, signOut } from '../../lib/auth';
 import { createSelectionConsumer } from '../../lib/selection-context';
+import { createImageSelectionConsumer } from '../../lib/image-selection';
+import { ImageExplanation } from './ImageExplanation';
 
 type View = 'discover' | 'repository' | 'saved' | 'profile' | 'settings';
 type IconName = 'branch' | 'search' | 'repo' | 'bookmark' | 'settings' | 'arrow' | 'circle' | 'back' | 'close' | 'check' | 'external';
@@ -53,16 +55,19 @@ function ProfileEditor({ profile, onSave, onCancel }: { profile: ContributorProf
 export default function App() {
   const [view, setView] = useState<View>('discover');
   const [aiProvider, setAiProvider] = useState<'gemini' | 'ollama'>('gemini');
-  const applyHealth = (data: any) => { setAiProvider(data.aiProvider === 'ollama' ? 'ollama' : 'gemini'); setHealth(data.mode !== 'live' ? 'demo' : data.aiProvider === 'ollama' && data.aiAvailable === false ? 'local-offline' : 'live'); };
+  const [visionAvailable, setVisionAvailable] = useState(false);
+  const applyHealth = (data: any) => { setVisionAvailable(data.visionAvailable === true || data.mode !== 'live'); setAiProvider(data.aiProvider === 'ollama' ? 'ollama' : 'gemini'); setHealth(data.mode !== 'live' ? 'demo' : data.aiProvider === 'ollama' && data.aiAvailable === false ? 'local-offline' : 'live'); };
   const [profile, setProfile] = useState<ContributorProfile>(defaultProfile); const [saved, setSaved] = useState<SavedMatch[]>([]); const [query, setQuery] = useState(''); const [repoInput, setRepoInput] = useState(''); const [currentRepo, setCurrentRepo] = useState<RepoRef | null>(null);
   const [health, setHealth] = useState<'checking' | 'demo' | 'live' | 'offline' | 'local-offline'>('checking'); const [busy, setBusy] = useState<string | null>(null); const [error, setError] = useState<{ message: string; code?: string; retry?: number } | null>(null);
   const [search, setSearch] = useState<ApiResponse<SearchResult> | null>(null); const [summary, setSummary] = useState<ApiResponse<Summary> | null>(null); const [learning, setLearning] = useState<ApiResponse<LearningPath> | null>(null); const [answer, setAnswer] = useState<ApiResponse<RepoAnswer> | null>(null); const [question, setQuestion] = useState(''); const [notice, setNotice] = useState('');
   const [issueCheck, setIssueCheck] = useState<IssueCheck | null>(null);
+  const [imageSelection, setImageSelection] = useState<ImageSelection | null>(null); const [imageAnswer, setImageAnswer] = useState<ApiResponse<VisionAnswer> | null>(null);
   const activeAction = useRef('');
   const selectionConsumer = useRef<ReturnType<typeof createSelectionConsumer> | null>(null);
+  const imageConsumer = useRef<ReturnType<typeof createImageSelectionConsumer> | null>(null);
   const gate = useRef(new RequestGate()); const lastAction = useRef<(() => void) | null>(null);
   const changeView = (next: View) => { gate.current.cancel(); setBusy(null); setError(null); setView(next); };
-  const clearRepoOutput = (cancelRequest = true) => { if (cancelRequest) { gate.current.cancel(); setBusy(null); } setSummary(null); setLearning(null); setAnswer(null); setQuestion(''); };
+  const clearRepoOutput = (cancelRequest = true) => { if (cancelRequest) { gate.current.cancel(); setBusy(null); } if (activeAction.current === 'vision') { lastAction.current = null; setError(null); } setSummary(null); setLearning(null); setAnswer(null); setQuestion(''); setImageSelection(null); setImageAnswer(null); };
   const activateRepo = (repo: RepoRef) => { clearRepoOutput(); setCurrentRepo(repo); setRepoInput(repoKey(repo)); setView('repository'); setError(null); };
   useEffect(() => {
     void localStore.loadProfile().then(p => { if (p) setProfile(p); }).catch(() => setNotice('Profile could not be loaded. You can create a new one.'));
@@ -74,6 +79,8 @@ export default function App() {
   useEffect(() => {
     if (!globalThis.chrome?.tabs) return;
     selectionConsumer.current ??= createSelectionConsumer({ get: keys => chrome.storage.session.get(keys), remove: keys => chrome.storage.session.remove(keys) });
+    imageConsumer.current ??= createImageSelectionConsumer({ get: keys => chrome.storage.session.get(keys), remove: keys => chrome.storage.session.remove(keys) });
+    void chrome.storage.session.get('circleError').then(data => { if (typeof data.circleError === 'string') { setError({ message: data.circleError }); return chrome.storage.session.remove('circleError'); } });
     let sequence = 0; let disposed = false; let previousContext = ''; let events = Promise.resolve();
     const context = (updatedTab?: number, consume = false, force = false) => {
       const event = ++sequence;
@@ -82,11 +89,15 @@ export default function App() {
         if (disposed || !tab || updatedTab !== undefined && tab.id !== updatedTab) return;
         const identity = `${tab.id}:${tab.url || ''}`;
         if (identity !== previousContext || force) { previousContext = identity; clearRepoOutput(activeAction.current !== 'search'); const repo = parseRepoRef(tab.url || ''); setCurrentRepo(repo); setRepoInput(repo ? repoKey(repo) : ''); }
-        if (consume) { const repo = await selectionConsumer.current!(tab); if (repo && !disposed && event === sequence) explain(repo); }
+        if (consume) {
+          const image = await imageConsumer.current!(tab);
+          if (image && !disposed && event === sequence) { activateRepo(image.repo); setImageSelection(image); return; }
+          const repo = await selectionConsumer.current!(tab); if (repo && !disposed && event === sequence) explain(repo);
+        }
       }).catch(() => {});
     };
     context(undefined, true);
-    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => { if (area === 'session' && changes.selectionNonce?.newValue) context(undefined, true); };
+    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => { if (area !== 'session') return; if (typeof changes.circleError?.newValue === 'string') { setError({ message: changes.circleError.newValue }); void chrome.storage.session.remove('circleError'); } if (changes.selectionNonce?.newValue) context(undefined, true); };
     const onMessage = (message: any, sender: chrome.runtime.MessageSender) => { if (sender.id === chrome.runtime.id && message.type === 'UNFORKED_NAVIGATED') context(sender.tab?.id); };
     const onActivated = () => context();
     const onUpdated: Parameters<typeof chrome.tabs.onUpdated.addListener>[0] = (id, change) => { if (change.url || change.status === 'loading' || change.status === 'complete') context(id, false, change.status === 'loading'); };
@@ -94,13 +105,13 @@ export default function App() {
     return () => { disposed = true; chrome.storage.onChanged.removeListener(onChanged); chrome.tabs.onActivated.removeListener(onActivated); chrome.tabs.onUpdated.removeListener(onUpdated); chrome.runtime.onMessage.removeListener(onMessage); };
   }, []);
   async function run(action: string, payload: Record<string, unknown>) {
-    const token = gate.current.start(); activeAction.current = action; setError(null); setBusy(action === 'search' ? 'Finding and checking repositories…' : action === 'learning-path' ? 'Mapping the project’s knowledge requirements…' : action === 'repo-question' ? 'Reading the available evidence…' : action === 'issue-check' ? 'Checking current issue availability…' : 'Reading this repository…');
+    const token = gate.current.start(); activeAction.current = action; setError(null); setBusy(action === 'vision' ? 'Reading your circled image…' : action === 'search' ? 'Finding and checking repositories…' : action === 'learning-path' ? 'Mapping the project’s knowledge requirements…' : action === 'repo-question' ? 'Reading the available evidence…' : action === 'issue-check' ? 'Checking current issue availability…' : 'Reading this repository…');
     lastAction.current = () => void run(action, payload);
     try {
       const response = await callApi(action, { ...payload, requestId: token.id }, token.signal);
       if (!gate.current.isCurrent(token.id)) return;
       setHealth(response.demo ? 'demo' : 'live'); if (response.aiProvider) setAiProvider(response.aiProvider);
-      if (action === 'search') { setSearch(response); setIssueCheck(null); } else if (action === 'summary') setSummary(response); else if (action === 'learning-path') setLearning(response); else if (action === 'issue-check') setIssueCheck(response.data); else setAnswer(response);
+      if (action === 'vision') setImageAnswer(response); else if (action === 'search') { setSearch(response); setIssueCheck(null); } else if (action === 'summary') setSummary(response); else if (action === 'learning-path') setLearning(response); else if (action === 'issue-check') setIssueCheck(response.data); else setAnswer(response);
     } catch (e) { if (gate.current.isCurrent(token.id)) { if (e instanceof ApiError && e.code === 'LOCAL_AI_OFFLINE') setHealth('local-offline'); setError({ message: e instanceof Error ? e.message : 'The action could not finish.', code: e instanceof ApiError ? e.code : undefined, retry: e instanceof ApiError ? e.retryAfterSeconds : undefined }); } }
     finally { if (gate.current.isCurrent(token.id)) setBusy(null); }
   }
@@ -108,7 +119,7 @@ export default function App() {
   const submitRepo = () => { const repo = parseRepoRef(repoInput || (currentRepo ? repoKey(currentRepo) : '')); if (!repo) { setError({ message: 'Enter a GitHub repository URL or owner/name, such as psf/requests.' }); return; } explain(repo); };
   const learn = (card: Match) => { activateRepo(card.repo); void run('learning-path', { repo: card.repo, profile, request: query || `Contribute to ${repoKey(card.repo)}` }); };
   const toggleSave = async (card: Match) => { try { const exists = saved.some(c => repoKey(c.repo) === repoKey(card.repo)); if (exists) await localStore.removeRepo(card.repo); else await localStore.saveRepo(card, search?.sources || [], search?.demo || false); setSaved(await localStore.listSaved()); setNotice(exists ? 'Removed from your shortlist.' : 'Saved to your shortlist.'); } catch { setError({ message: 'Could not update your saved repositories. Device storage may be full.' }); } };
-  const circle = async () => { if (!globalThis.chrome?.tabs) { setError({ message: 'Circle selection works inside the installed extension on GitHub. Use a repository URL in this preview.' }); return; } try { const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); if (!tab?.id || !tab.url?.startsWith('https://github.com/')) throw new Error(); await chrome.tabs.sendMessage(tab.id, { type: 'UNFORKED_CIRCLE' }); setNotice('Circle a repository title or link on GitHub. Escape cancels.'); } catch { setError({ message: 'Open or reload a GitHub page, then try circle selection again.' }); } };
+  const circle = async (mode: 'image' | 'repository' = 'image') => { if (!globalThis.chrome?.tabs) { setError({ message: 'Circle selection works inside the installed extension on GitHub. Use a repository URL in this preview.' }); return; } try { const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); if (!tab?.id || !tab.url?.startsWith('https://github.com/')) throw new Error(); await chrome.tabs.sendMessage(tab.id, { type: 'UNFORKED_CIRCLE', mode }); setNotice(mode === 'image' ? 'Circle code, text or a diagram. Preview it here, then choose Explain image.' : 'Circle a repository title or link on GitHub. Escape cancels.'); } catch { setError({ message: 'Open or reload a GitHub page, then try circle selection again.' }); } };
   const cards = view === 'saved' ? saved : search?.data.matches || [];
   return <div className="app-shell">
     <header className="app-header"><a className="brand" href="#" onClick={e => { e.preventDefault(); changeView('discover'); }} aria-label="Unforked home"><span className="brand-mark"><Icon name="branch" size={23}/></span>unforked<span className="beta">BETA</span></a><button className="icon-button" onClick={() => changeView('settings')} aria-label="Settings"><Icon name="settings"/></button></header>
@@ -127,8 +138,9 @@ export default function App() {
         {!search && <div className="examples"><p>Or start with an idea</p>{[{ label: 'My first Python contribution', text: 'I know Python functions, classes, and basic Git. Find my first contribution in a developer-tools project.' }, { label: 'A project for this weekend', text: 'I have four hours this weekend. Find a small contribution using my current skills.' }, { label: 'Learn by contributing', text: 'Find a project close to my current skills and give me a learning path for a useful contribution.' }].map(example => <button key={example.label} onClick={() => setQuery(example.text)}>{example.label}<Icon name="arrow" size={14}/></button>)}</div>}
         {search && <section className="results"><div className="section-heading"><div><h2>{search.data.status === 'no_strong_match' ? 'A nearby place to begin.' : 'A few places to start.'}</h2><p>{search.data.status === 'no_strong_match' ? 'No strong match was found in this search. Consider these alternatives or refine your goal.' : 'Chosen for your next step, not their star count.'}</p></div><span className="count">{search.data.matches.length}</span></div>{search.data.searchLimitations.map((l, i) => <p className="quiet-note" key={i}>{l}</p>)}{cards.map(card => <RepoCard key={repoKey(card.repo)} card={card} saved={saved.some(s => repoKey(s.repo) === repoKey(card.repo))} sources={search.sources} demo={search.demo} onSave={() => void toggleSave(card)} onLearn={() => learn(card)} onExplain={() => explain(card.repo)} issueCheck={issueCheck} onCheckIssue={() => { setIssueCheck(null); void run('issue-check', { repo: card.repo, issueNumber: card.issueNumber }); }}/>)}{!cards.length && <div className="empty-state"><Icon name="search" size={30}/><h3>No verified matches yet.</h3><p>Try a broader interest, or explicitly relax a constraint. A limited search does not mean the right project doesn’t exist.</p></div>}</section>}
       </>}
-      {view === 'repository' && <section className="repository-view"><h1>A little context.<br/><span>A clearer next step.</span></h1><p className="intro">Understand a project before you jump in.</p><form className="repo-form" onSubmit={e => { e.preventDefault(); submitRepo(); }}><label htmlFor="repo-input">GitHub repository</label><input id="repo-input" value={repoInput} onChange={e => { clearRepoOutput(); setRepoInput(e.target.value); }} placeholder="github.com/owner/repository"/><div className="form-row"><button className="primary" disabled={!!busy} type="submit">Explain repository<Icon name="arrow" size={16}/></button><button className="secondary" type="button" onClick={() => void circle()} aria-label="Circle a repository"><Icon name="circle" size={17}/>Circle</button></div></form>
-        {!summary && !learning && !busy && <div className="empty-state compact"><Icon name="repo" size={30}/><h2>Go beyond the README.</h2><p>See what a project does, what it uses, and where you might begin.</p><button className="text-button" onClick={() => { setRepoInput('psf/requests'); explain({ owner: 'psf', name: 'requests' }); }}>Try Requests<Icon name="arrow" size={14}/></button></div>}
+      {view === 'repository' && <section className="repository-view"><h1>A little context.<br/><span>A clearer next step.</span></h1><p className="intro">Understand a project before you jump in.</p><form className="repo-form" onSubmit={e => { e.preventDefault(); submitRepo(); }}><label htmlFor="repo-input">GitHub repository</label><input id="repo-input" value={repoInput} onChange={e => { clearRepoOutput(); setRepoInput(e.target.value); }} placeholder="github.com/owner/repository"/><div className="form-row"><button className="primary" disabled={!!busy} type="submit">Explain repository<Icon name="arrow" size={16}/></button><button className="secondary" type="button" onClick={() => void circle()} aria-label="Circle an image"><Icon name="circle" size={17}/>Circle</button></div><button className="text-button circle-link-option" type="button" onClick={() => void circle('repository')}>Circle a repository link instead</button></form>
+        {imageSelection && <ImageExplanation selection={imageSelection} answer={imageAnswer?.data || null} demo={imageAnswer?.demo || false} available={visionAvailable} busy={!!busy} onExplain={question => void run('vision', { ...imageSelection, question })} onDiscard={() => { gate.current.cancel(); setBusy(null); setError(null); setImageSelection(null); setImageAnswer(null); lastAction.current = null; }}/>}
+        {!summary && !learning && !imageSelection && !busy && <div className="empty-state compact"><Icon name="repo" size={30}/><h2>Go beyond the README.</h2><p>See what a project does, what it uses, and where you might begin.</p><button className="text-button" onClick={() => { setRepoInput('psf/requests'); explain({ owner: 'psf', name: 'requests' }); }}>Try Requests<Icon name="arrow" size={14}/></button></div>}
         {summary && <section className="summary-result"><div className="section-heading"><h2>About this repository</h2><span className="count">{summary.demo ? 'DEMO' : 'CHECKED'}</span></div><p className="summary-purpose">{summary.data.purpose}</p><div className="tags">{summary.data.stack.map(s => <span key={s}>{s}</span>)}</div><h3>Before you contribute</h3><ul className="prose-list">{summary.data.contributionNotes.map((n, i) => <li key={i}>{n}</li>)}</ul><details className="limitations"><summary>What we couldn’t verify</summary><ul>{summary.data.limitations.map((l, i) => <li key={i}>{l}</li>)}</ul></details><Sources sources={summary.sources} ids={summary.data.sourceIds} demo={summary.demo}/><form className="question-form" onSubmit={e => { e.preventDefault(); if (currentRepo && question.trim()) void run('repo-question', { repo: currentRepo, question }); }}><label htmlFor="repo-question">Ask about this repository</label><div className="question-input"><input id="repo-question" aria-label="Repository question" value={question} maxLength={1000} onChange={e => setQuestion(e.target.value)} placeholder="What should I learn first?"/><button className="icon-button" type="submit" disabled={!question.trim() || !!busy} aria-label="Ask about this repository"><Icon name="arrow"/></button></div></form>{answer && <div className="answer"><p>{answer.data.answer}</p><p className="quiet-note">{answer.data.limitation}</p><Sources sources={answer.sources} ids={answer.data.sourceIds} demo={answer.demo}/></div>}</section>}
         {learning && <section className="learning-result"><KnowledgeRoadmap data={learning.data} profile={profile} sources={learning.sources}/><Sources sources={learning.sources} ids={learning.data.sourceIds} demo={learning.demo}/></section>}
       </section>}

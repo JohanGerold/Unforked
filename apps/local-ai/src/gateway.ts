@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import { Buffer } from 'node:buffer';
-import { AppError, LOCAL_BODY_LIMIT, LOCAL_CONTEXT, LOCAL_MODEL, LocalGenerateSchema, PayloadError, readBoundedJson } from '@unforked/contracts';
+import { AppError, LOCAL_BODY_LIMIT, LOCAL_CONTEXT, LOCAL_MODEL, LocalGenerateSchema, LocalVisionGenerateSchema, VISION_BODY_LIMIT, PayloadError, readBoundedJson } from '@unforked/contracts';
 import { SerialQueue } from './queue';
 
 export function createGateway(options: { token: string; fetcher?: typeof fetch; timeoutMs?: number }) {
@@ -18,16 +18,21 @@ export function createGateway(options: { token: string; fetcher?: typeof fetch; 
         if (!response.ok) throw new Error('Ollama unavailable');
         const tags = await readBoundedJson(response, 128000);
         if (!tags.models?.some((model: any) => model.name === LOCAL_MODEL)) throw new Error('Model missing');
-        return Response.json({ ready: true, model: LOCAL_MODEL, active: queue.active, queued: queue.pending });
+        const details = await fetcher('http://127.0.0.1:11434/api/show', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: LOCAL_MODEL }), signal, redirect: 'manual' });
+        const model = details.ok ? await readBoundedJson(details, 128000) : null;
+        return Response.json({ ready: true, visionAvailable: model?.capabilities?.includes('vision') === true, model: LOCAL_MODEL, active: queue.active, queued: queue.pending });
       }
-      if (path !== '/v1/generate' || request.method !== 'POST') return Response.json({ error: { code: 'NOT_FOUND', userMessage: 'Unknown gateway action.' } }, { status: 404 });
-      const parsed = LocalGenerateSchema.safeParse(await readBoundedJson(request, LOCAL_BODY_LIMIT));
+      if (!['/v1/generate', '/v1/vision'].includes(path) || request.method !== 'POST') return Response.json({ error: { code: 'NOT_FOUND', userMessage: 'Unknown gateway action.' } }, { status: 404 });
+      const vision = path === '/v1/vision';
+      const raw = await readBoundedJson(request, vision ? VISION_BODY_LIMIT : LOCAL_BODY_LIMIT);
+      const visual = vision ? LocalVisionGenerateSchema.safeParse(raw) : undefined;
+      const parsed = visual ?? LocalGenerateSchema.safeParse(raw);
       if (!parsed.success) throw new AppError('INVALID_INPUT', 'Check the local analysis request and its size.', 400);
-      const input = parsed.data; requestId = input.requestId;
+      const input = parsed.data; const image = visual?.success ? visual.data.image : undefined; requestId = input.requestId;
       if (inFlight.has(requestId)) { requestId = undefined; throw new AppError('DUPLICATE_REQUEST', 'This generation is already running.', 409); }
       inFlight.add(requestId);
       const result = await queue.run(async () => {
-        const response = await fetcher('http://127.0.0.1:11434/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, redirect: 'manual', signal, body: JSON.stringify({ model: LOCAL_MODEL, stream: false, think: false, keep_alive: '5m', messages: [{ role: 'user', content: `${input.prompt}\nReturn JSON matching this schema: ${JSON.stringify(input.schema)}` }], format: input.schema, options: { num_ctx: LOCAL_CONTEXT, num_predict: input.maxOutputTokens, temperature: 0.2 } }) });
+        const response = await fetcher('http://127.0.0.1:11434/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, redirect: 'manual', signal, body: JSON.stringify({ model: LOCAL_MODEL, stream: false, think: false, keep_alive: '5m', messages: [{ role: 'user', content: `${input.prompt}\nReturn JSON matching this schema: ${JSON.stringify(input.schema)}`, ...(image ? { images: [image.data] } : {}) }], format: input.schema, options: { num_ctx: LOCAL_CONTEXT, num_predict: input.maxOutputTokens, temperature: 0.2 } }) });
         if (!response.ok) throw new AppError('LOCAL_AI_OFFLINE', 'The local AI could not finish. Ask the beta owner to check Ollama.', 503, 15);
         const generated = await readBoundedJson(response, 128000);
         if (generated.model !== LOCAL_MODEL || generated.done !== true || generated.done_reason !== 'stop' || generated.message?.thinking || !Number.isSafeInteger(generated.prompt_eval_count) || generated.prompt_eval_count < 0 || generated.prompt_eval_count + input.maxOutputTokens > LOCAL_CONTEXT || !Number.isSafeInteger(generated.eval_count) || generated.eval_count < 0 || generated.eval_count > input.maxOutputTokens) throw new AppError('UNSUPPORTED_OUTPUT', 'The local AI answer did not finish within its limits. Try a narrower request.', 502);

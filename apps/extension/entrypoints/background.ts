@@ -1,6 +1,12 @@
 import { defineBackground } from 'wxt/utils/define-background';
 import { parseRepoRef } from '@unforked/contracts';
+import { captureCircle } from '../features/selection/capture-image';
+import { circleCommand } from '../features/selection/circle-command';
 export default defineBackground(() => {
+  const imageKeys = ['selectedImage', 'selectedTab', 'selectedPageUrl', 'selectedWindow', 'selectionCreatedAt', 'selectionNonce'];
+  chrome.tabs.onActivated.addListener(info => { void chrome.storage.session.get(imageKeys).then(data => { if (data.selectedImage && data.selectedWindow === info.windowId && data.selectedTab !== info.tabId) return chrome.storage.session.remove(imageKeys); }); });
+  chrome.tabs.onUpdated.addListener((id, change) => { if (!change.url && change.status !== 'loading') return; void chrome.storage.session.get(imageKeys).then(data => { if (data.selectedImage && data.selectedTab === id) return chrome.storage.session.remove(imageKeys); }); });
+  chrome.tabs.onRemoved.addListener(id => { void chrome.storage.session.get(imageKeys).then(data => { if (data.selectedImage && data.selectedTab === id) return chrome.storage.session.remove(imageKeys); }); });
   void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.removeAll(() => {
@@ -13,19 +19,32 @@ export default defineBackground(() => {
     if (!repo) return;
     // Open synchronously in the user gesture, then persist context for a newly mounted panel.
     void chrome.sidePanel.open({ tabId: tab.id });
-    void chrome.storage.session.set({ selectedRepo: repo, selectedTab: tab.id, selectedPageUrl: info.pageUrl || tab.url, selectionCreatedAt: Date.now(), selectionNonce: crypto.randomUUID() });
+    void chrome.storage.session.set({ selectedImage: null, selectedRepo: repo, selectedTab: tab.id, selectedPageUrl: info.pageUrl || tab.url, selectionCreatedAt: Date.now(), selectionNonce: crypto.randomUUID() });
   });
-  chrome.commands.onCommand.addListener(async command => {
-    if (command !== 'circle-repository') return;
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id && tab.url?.startsWith('https://github.com/')) {
-      try { await chrome.tabs.sendMessage(tab.id, { type: 'UNFORKED_CIRCLE' }); } catch { /* Page may have navigated; user can retry from sidebar. */ }
+  chrome.commands.onCommand.addListener((command, tab) => { void circleCommand(command, tab).catch(() => {}); });
+  const captures = new Map<number, number>();
+  chrome.runtime.onMessage.addListener((message, sender, reply) => {
+    if (sender.id !== chrome.runtime.id || !sender.tab?.id || !sender.tab.url?.startsWith('https://github.com/')) return;
+    if (message.type === 'UNFORKED_CAPTURE_IMAGE') {
+      const tab = sender.tab; const windowId = tab.windowId; const nonce = (captures.get(windowId) || 0) + 1; captures.set(windowId, nonce);
+      void (async () => {
+        try {
+          if (typeof message.createdAt !== 'number' || Date.now() - message.createdAt > 5000 || message.createdAt > Date.now() + 1000) throw new Error('The selection expired. Draw the circle again.');
+          const selectedImage = await captureCircle(tab, message);
+          if (captures.get(windowId) !== nonce) return reply({ ok: false });
+          await chrome.storage.session.set({ selectedImage, selectedRepo: null, selectedTab: tab.id, selectedWindow: windowId, selectedPageUrl: tab.url, selectionCreatedAt: Date.now(), selectionNonce: crypto.randomUUID(), circleError: null });
+          reply({ ok: true });
+        } catch (error) {
+          if (captures.get(windowId) !== nonce) return reply({ ok: false });
+          const message = error instanceof Error && /^(?:Click Unforked|The active page|The page moved|The selection expired|Open a GitHub|This image|The captured)/.test(error.message) ? error.message : 'Could not capture this selection. Try drawing a larger circle.';
+          await chrome.storage.session.set({ circleError: message }); reply({ ok: false });
+        }
+      })();
+      return true;
     }
-  });
-  chrome.runtime.onMessage.addListener((message, sender) => {
-    if (sender.id !== chrome.runtime.id || !sender.tab?.id || !sender.tab.url?.startsWith('https://github.com/') || message.type !== 'UNFORKED_SELECTED') return;
+    if (message.type !== 'UNFORKED_SELECTED') return;
     const repo = parseRepoRef(`${message.repo?.owner}/${message.repo?.name}`); if (!repo) return;
     void chrome.sidePanel.open({ tabId: sender.tab.id });
-    void chrome.storage.session.set({ selectedRepo: repo, selectedTab: sender.tab.id, selectedPageUrl: sender.tab.url, selectionCreatedAt: Date.now(), selectionNonce: crypto.randomUUID() });
+    void chrome.storage.session.set({ selectedImage: null, selectedRepo: repo, selectedTab: sender.tab.id, selectedPageUrl: sender.tab.url, selectionCreatedAt: Date.now(), selectionNonce: crypto.randomUUID() });
   });
 });

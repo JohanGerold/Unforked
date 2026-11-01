@@ -1,4 +1,13 @@
 const reserved = new Set(['topics', 'settings', 'search', 'explore', 'marketplace', 'collections', 'orgs', 'users', 'login', 'signup', 'notifications', 'pulls', 'issues', 'features', 'about', 'sponsors', 'apps', 'new', 'codespaces', 'dashboard', 'discussions', 'enterprise', 'security', 'site']);
+export function imagePageRepo(input: string): { owner: string; name: string } | null {
+  try {
+    const url = new URL(input); const repo = parseRepoRef(input);
+    const parts = url.pathname.split('/').filter(Boolean).slice(2);
+    const area = !parts.length || ['blob', 'tree', 'issues', 'pull', 'discussions', 'wiki', 'releases', 'commit', 'commits', 'compare', 'tags', 'branches'].includes(parts[0]);
+    const editor = ['issues', 'discussions', 'pull', 'releases'].includes(parts[0]) && ['new', 'edit'].includes(parts[1]);
+    return repo && area && !editor && !url.search && !url.hash ? repo : null;
+  } catch { return null; }
+}
 export function parseRepoRef(input: string): { owner: string; name: string } | null {
   try {
     const raw = input.trim();

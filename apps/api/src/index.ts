@@ -16,6 +16,7 @@ import { configuredCostBound } from './ai/budget';
 import { checkIssue } from './github/issue-check';
 import { cleanupExpiredData } from './maintenance';
 import { betaInformation } from './privacy';
+import { explainImage, VISION_BODY_LIMIT } from './vision';
 export const app = new Hono<{ Bindings: Env }>();
 app.use('*', async (c, next) => {
   const origin = c.req.header('Origin'); const local = c.env.ENVIRONMENT === 'development';
@@ -25,7 +26,7 @@ app.use('*', async (c, next) => {
   if (c.req.method === 'OPTIONS') return c.body(null, allowed ? 204 : 403);
   await next();
 });
-app.use('/v1/*', bodyLimit({ maxSize: 64000, onError: c => c.json({ error: { code: 'INVALID_INPUT', userMessage: 'This request is too large.' } }, 413) }));
+app.use('/v1/*', async (c, next) => bodyLimit({ maxSize: c.req.path === '/v1/vision' ? VISION_BODY_LIMIT : 64000, onError: c => c.json({ error: { code: 'INVALID_INPUT', userMessage: 'This request is too large.' } }, 413) })(c, next));
 app.get('/health', async c => c.json({ name: 'Unforked', mode: c.env.MODE === 'live' ? 'live' : 'demo', ...await providerHealth(c.env) }));
 app.get('/', c => c.text(betaInformation(c.env)));
 app.get('/privacy', c => c.text(betaInformation(c.env)));
@@ -34,6 +35,7 @@ app.post('/auth/start', async c => { const body = await c.req.json().catch(() =>
 app.get('/auth/callback', async c => c.redirect(await oauthCallback(c.env, c.req.query('state') || '', c.req.query('code') || '')));
 app.post('/auth/exchange', async c => { const body = await c.req.json().catch(() => ({})) as any; if (!['code', 'state', 'verifier'].every(k => typeof body[k] === 'string' && body[k].length >= 20 && body[k].length <= 200)) throw new AppError('INVALID_INPUT', 'Invalid sign-in exchange.'); return c.json(await exchangeCode(c.env, body)); });
 app.post('/auth/logout', async c => { await logout(c.req.raw, c.env); return c.json({ ok: true }); });
+app.post('/v1/vision', explainImage);
 app.post('/v1/:action', async c => {
   const input = RequestSchema.safeParse(await c.req.json().catch(() => null));
   if (!input.success) throw new AppError('INVALID_INPUT', 'Check the repository, request, or profile and try again.');

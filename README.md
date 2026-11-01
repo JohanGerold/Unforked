@@ -60,6 +60,7 @@ For the shared laptop provider, see [local AI setup and daily use](docs/local-ai
 - Project knowledge roadmaps grouped by language, concepts and libraries, based on dependency manifests and sampled source files; profile-listed concepts are marked without assuming unlisted knowledge is missing.
 - Nearby alternatives and knowledge roadmaps when strong matches are absent.
 - Circle mode, context-menu explanation, repository URL input, and the `Alt+Shift+U` shortcut.
+- Circle image mode: preview a locally cropped/masked GitHub image, optionally ask a question, and have local Qwen explain the visible code/text/diagram. Only the selected crop is sent after Explain image; no image history or cloud-model fallback.
 - Local saved shortlist with demo provenance and source references.
 - Cancel/retry, rate-limit errors, stale-response prevention, and keyboard-accessible controls.
 - Visible recommendation dates and limitations, plus fresh issue checks before opening suggested work.

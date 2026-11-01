@@ -4,9 +4,10 @@ import { startCircle } from '../features/selection/circle-overlay';
 export default defineContentScript({ matches: ['https://github.com/*'], main(ctx) {
   let cleanup: (() => void) | undefined;
   const cancel = () => { cleanup?.(); cleanup = undefined; };
-  const listener = (message: { type?: string }, sender: chrome.runtime.MessageSender, reply: (value: unknown) => void) => {
+  const listener = (message: { type?: string; mode?: string }, sender: chrome.runtime.MessageSender, reply: (value: unknown) => void) => {
     if (sender.id !== chrome.runtime.id) return;
-    if (message.type === 'UNFORKED_CIRCLE') { cancel(); cleanup = startCircle(); reply({ ok: true }); }
+    if (message.type === 'UNFORKED_CIRCLE') { cancel(); cleanup = startCircle(message.mode === 'image' ? 'image' : 'repository'); reply({ ok: true }); }
+    if (message.type === 'UNFORKED_CAPTURE_CONTEXT') reply({ url: location.href, width: innerWidth, height: innerHeight, scrollX, scrollY });
     if (message.type === 'UNFORKED_CONTEXT') reply({ repo: parseRepoRef(location.href) });
   };
   chrome.runtime.onMessage.addListener(listener);

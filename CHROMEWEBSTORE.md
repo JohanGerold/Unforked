@@ -42,6 +42,7 @@ Profiles and saved projects stay on your device. Explicit analysis requests send
 | storage | Save contributor preferences and a shortlist locally; hold session context while browsing |
 | contextMenus | Offer “Explain repository with Unforked” for GitHub page links |
 | identity | Complete GitHub sign-in for a configured hosted live service |
+| activeTab | Capture the visible GitHub tab after a toolbar/keyboard invocation, crop and mask the user-selected shape locally, and preview it before sending only that crop for a local-model explanation |
 | https://github.com/* | Resolve selected repository links and render the user-invoked circle overlay on GitHub |
 | https://unforked-beta.unforked-api.workers.dev/* | Send requested repository analysis and complete GitHub sign-in with the hosted service |
 
@@ -50,6 +51,8 @@ The content script is restricted to GitHub. The manifest does not request histor
 ## Privacy and data use
 
 Data is handled: local skills/preferences and saved snapshots; explicitly submitted requests/profile context; public website content used as evidence; hosted public GitHub identity, session credentials, and allowance records. This data must be disclosed accurately in the store form. No health or financial data is requested. User-entered free text may contain personal information.
+
+Circle image explanations additionally process an explicitly submitted cropped screenshot and optional question. The full viewport is captured only locally; the selected shape is masked, previewed and sent only after Explain image. Crops are temporary/session or in-memory data, never saved history, database records or application logs. The backend checks public repository access before forwarding to the local vision model. Image explanations have no Google fallback. Store disclosures must include this user-submitted image/website-content processing; the service does not take continuous screenshots.
 
 The implementation has no sale, advertising, creditworthiness, or unrelated-use functionality. The publisher must verify model-provider data-use settings and operational retention before certifying store disclosures.
 
