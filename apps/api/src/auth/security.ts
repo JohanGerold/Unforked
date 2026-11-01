@@ -1,5 +1,6 @@
 import { AppError } from '@unforked/contracts';
 import type { Env } from '../env';
+import { checkMembership } from './membership';
 const bytes = (text: string) => new TextEncoder().encode(text);
 const encode = (value: Uint8Array) => btoa(String.fromCharCode(...value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const decode = (value: string) => Uint8Array.from(atob(value.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
@@ -38,6 +39,7 @@ export async function exchangeCode(env: Env, input: { code: string; state: strin
   if (!tokenResponse.ok || !token.access_token || token.scope?.trim() || token.token_type !== 'bearer') throw new AppError('AUTH_REQUIRED', 'Public-only sign-in could not be completed. Revoke any older broader Unforked grant in GitHub and try again.', 401);
   const identity = await fetcher('https://api.github.com/user', { headers: { Authorization: `Bearer ${token.access_token}`, 'User-Agent': 'Unforked/0.1', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(15000), redirect: 'error' });
   const user = await identity.json() as any; if (!identity.ok || !Number.isSafeInteger(user.id)) throw new AppError('AUTH_REQUIRED', 'GitHub identity could not be verified.', 401);
+  await checkMembership(env, String(user.id));
   const sessionToken = encode(crypto.getRandomValues(new Uint8Array(32))); const expiresAt = Date.now() + Math.min(28800, Number(token.expires_in) || 28800) * 1000;
   await config.db.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(Date.now()).run();
   await config.db.prepare('INSERT INTO sessions (token_hash,user_id,encrypted_token,expires_at) VALUES (?,?,?,?)').bind(await hash(sessionToken), String(user.id), await seal(token.access_token, config.key), expiresAt).run();
@@ -49,6 +51,7 @@ export async function requireSession(request: Request, env: Env, fetcher: typeof
   const digest = await hash(token);
   const row = await env.DB.prepare('SELECT user_id,encrypted_token,expires_at FROM sessions WHERE token_hash=?').bind(digest).first<{ user_id: string; encrypted_token: string; expires_at: number }>();
   if (!row || row.expires_at <= Date.now()) throw new AppError('AUTH_REQUIRED', 'Your session expired. Sign in again.', 401);
+  await checkMembership(env, row.user_id);
   let githubToken: string; try { githubToken = await unseal(row.encrypted_token, env.TOKEN_ENCRYPTION_KEY); } catch { throw new AppError('AUTH_REQUIRED', 'Your session could not be read. Sign in again.', 401); }
   const identity = await fetcher('https://api.github.com/user', { headers: { Authorization: `Bearer ${githubToken}`, 'User-Agent': 'Unforked/0.1' }, signal: AbortSignal.timeout(15000), redirect: 'error' });
   if (identity.status === 401) { await env.DB.prepare('DELETE FROM sessions WHERE token_hash=?').bind(digest).run(); throw new AppError('AUTH_REQUIRED', 'GitHub access was revoked. Sign in again.', 401); }

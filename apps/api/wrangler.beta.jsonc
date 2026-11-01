@@ -1,0 +1,53 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "unforked-beta",
+  "account_id": "9ec319b41a97b87c3d1e32d3bab0a36c",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-30",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "preview_urls": false,
+  "vars": {
+    "ENVIRONMENT": "production",
+    "MODE": "demo",
+    "BETA_ACCESS": "invite-only",
+    "EXTENSION_ID": "afgkgdnejdfeacijhmcgajbgmgamhced",
+    "SUPPORT_EMAIL": "johangerold385@gmail.com",
+    "AI_MODEL": "gemini-3.5-flash-lite",
+    "AI_INPUT_USD_PER_MILLION": "0.30",
+    "AI_OUTPUT_USD_PER_MILLION": "2.50",
+    "DAILY_LIMIT": "5",
+    "MONTHLY_BUDGET_MICRODOLLARS": "5000000",
+    "ACTION_RESERVATION_MICRODOLLARS": "50000",
+    "API_ORIGIN": "https://unforked-beta.unforked-api.workers.dev",
+    "GITHUB_CLIENT_ID": "Ov23livNxP5tCgSBsAJC"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "unforked-beta",
+      "database_id": "81fa3b79-cb10-463d-8b28-75226664412c",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "17 * * * *"
+    ]
+  },
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": false
+    },
+    "traces": {
+      "enabled": true,
+      "persist": false,
+      "head_sampling_rate": 0.1
+    }
+  }
+}

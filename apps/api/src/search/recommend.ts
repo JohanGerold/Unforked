@@ -3,6 +3,9 @@ import { AppError, IntentSchema, MatchSchema, type ContributorProfile, type Sear
 import { boundary, compactEvidence, validateMatches, type Model } from '../ai/analysis';
 import { GitHubClient } from '../github/client';
 import { fetchEvidence } from '../github/evidence';
+// Keep nested arrays small enough for Google's constrained-decoding grammar.
+// Full MatchSchema and evidence validation still run after generation.
+export const rankSchema = z.object({ matches: z.array(MatchSchema.extend({ fitReasons: MatchSchema.shape.fitReasons.max(3), skillGaps: MatchSchema.shape.skillGaps.max(3), limitations: MatchSchema.shape.limitations.max(3), sourceIds: MatchSchema.shape.sourceIds.max(3) })).max(3), noStrongMatch: z.boolean(), limitations: z.array(z.string().max(1000)).max(3) });
 export function buildQueries(intent: SearchIntent): string[] { return [...new Set(intent.queries)].slice(0, 3).map(q => `${q.replace(/(?:-?archived|is):\S+/gi, '').slice(0, 180).trim()} archived:false is:public`); }
 export function enforceLanguageConstraint(request: string, languages: string[]) {
   const found = request.match(/\bonly\s+(python|javascript|typescript|rust|go|java|ruby|c\+\+)|\b(python|javascript|typescript|rust|go|java|ruby|c\+\+)\s+only\b/i);
@@ -25,9 +28,8 @@ export async function recommend(request: string, profile: ContributorProfile, cl
     catch (e) { if (e instanceof AppError && ['RATE_LIMITED', 'BUDGET_EXHAUSTED'].includes(e.code)) { limitations.push(e.message); break; } limitations.push(`Could not verify ${repo.full_name}.`); }
   }
   if (!evidence.length) return { result: { matches: [], status: 'no_strong_match', searchLimitations: [...limitations, 'No suitable public candidates were verified within this search. Try a broader interest or explicitly relax a constraint.'], intent }, evidence };
-  const rankSchema = z.object({ matches: z.array(MatchSchema).max(5), noStrongMatch: z.boolean(), limitations: z.array(z.string().max(1000)).max(10) });
   const compact = evidence.slice(0, 6).map(e => compactEvidence(e, 250));
-  const ranked = rankSchema.parse(await model.generate(rankSchema, `${boundary}\nRank at most five candidate repositories for the original request and intent. Skill fit, verified available work, setup burden, interests and time matter; stars do not. Obey every hard constraint. If none strongly fit, set noStrongMatch true and offer the nearest permitted alternatives with readiness learn_first and clear skill gaps. Choose only an open unassigned issue without observed competing work, otherwise issueNumber null. checkedAt must come from evidence. Request: ${request}. Profile: ${JSON.stringify(profile)}. Intent: ${JSON.stringify(intent)}. Evidence: ${JSON.stringify(compact)}`));
+  const ranked = rankSchema.parse(await model.generate(rankSchema, `${boundary}\nRank at most three candidate repositories for the original request and intent. Keep each explanation concise and each list to at most three items. Skill fit, verified available work, setup burden, interests and time matter; stars do not. Obey every hard constraint. If none strongly fit, set noStrongMatch true and offer the nearest permitted alternatives with readiness learn_first and clear skill gaps. Choose only an open unassigned issue without observed competing work, otherwise issueNumber null. checkedAt must come from evidence. Request: ${request}. Profile: ${JSON.stringify(profile)}. Intent: ${JSON.stringify(intent)}. Evidence: ${JSON.stringify(compact)}`));
   const matches = validateMatches(ranked.matches, evidence);
   return { result: { matches, intent, status: ranked.noStrongMatch || !matches.length ? 'no_strong_match' : limitations.length ? 'partial' : 'complete', searchLimitations: [...limitations, ...ranked.limitations, 'Results are a bounded shortlist, not an exhaustive search of GitHub.'].slice(0, 20) }, evidence };
 }

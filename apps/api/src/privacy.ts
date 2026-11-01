@@ -1,0 +1,23 @@
+import type { Env } from './env';
+
+export function betaInformation(env: Env): string {
+  const contact = env.SUPPORT_EMAIL || 'Contact the person who invited you before using this beta.';
+  return `Unforked — private beta
+
+Find public GitHub projects, understand repositories, and plan contributions.
+Access to live actions is restricted to invited GitHub accounts.
+
+Privacy policy — updated November 1, 2026
+
+Your profile and saved repositories stay in Chrome local storage on your device. Clear them in Settings or uninstall the extension. Circle gestures are processed locally. Unforked does not upload screenshots or inspect other websites.
+
+When you request an analysis, your request/question, relevant profile fields and the selected public repository are sent to this backend. Public repository documentation and bounded activity samples are retrieved from GitHub. Live AI analysis sends this material to Google. Under Google's free-tier terms, submitted content may be used to improve its products. Avoid personal or confidential information. See https://ai.google.dev/gemini-api/terms and https://ai.google.dev/gemini-api/docs/pricing . Demo responses do not call Google.
+
+GitHub handles sign-in. Cloudflare hosts the API and D1 database. We store your numeric GitHub ID, invitation status and username, hashed session tokens, encrypted GitHub access tokens, OAuth state, request IDs, UTC usage dates and allowance reservations. Profiles, raw prompts and repository text are not saved in D1 or application logs. Provider services process network metadata under their own terms. No advertising or tracking analytics are installed.
+
+Sessions expire within eight hours and OAuth states within ten minutes. Expired authentication records are removed hourly. Usage reservations are retained for up to 90 days, then removed hourly; current-month accounting is preserved. Invitations remain until the owner removes them. Sign out removes the current session; revoke the OAuth grant in GitHub to remove authorization. Contact support to revoke your invitation and remove server authentication data. Usage records needed to enforce the current allowance expire under this retention schedule.
+
+Support and privacy requests: ${contact}
+Beta availability and AI answers are experimental. Repository evidence and issue availability can change.
+`;
+}

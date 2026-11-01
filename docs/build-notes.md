@@ -1,6 +1,6 @@
 # Implementation decisions and verification
 
-Local MVP built November 1, 2026. No deployment, publication, provider-account creation, or paid model call was performed.
+Local MVP built November 1, 2026. The original MVP verification below predates the private beta setup; see the appended beta record for current deployment status.
 
 ## Decisions made during implementation
 
@@ -31,3 +31,9 @@ Repository activity is refreshed before recommending actionable issues. A separa
 ## Limits of this verification
 
 No live AI credential or real GitHub OAuth app was supplied. Therefore real-model answer quality, prompt-injection behavior beyond validation boundaries, account sign-in end to end, provider pricing assumptions, hosted CPU performance, browser zoom behavior, and human relevance evaluation remain unverified. The local demo and the tested live-service code are available, while public launch still requires the setup and evaluation gates documented elsewhere.
+
+## Private beta preparation
+
+The owner later supplied credentials privately and confirmed Gemini free tier. A dedicated D1 database and demo Worker were deployed, with only JohanGerold invited. The extension public identity is pinned and verified across two install paths. Membership is checked at OAuth exchange and before every hosted live action; scheduled expiry/usage retention and a real policy/support contact were added.
+
+Live summaries, questions and learning paths passed schema/citation checks. Google's rejection of the original nested ranking schema was isolated to its output complexity; concise three-candidate output passed a real schema probe. A complete corrected search, real hosted OAuth round trip, human evaluation, remote cleanup observation and CPU measurements remain launch gates. Public GitHub retrieval reached the unauthenticated rate limit during repeated search diagnostics. See `beta-evaluation.md` and `beta-operations.md` for evidence and limitations. No paid upgrades were enabled.

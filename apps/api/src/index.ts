@@ -12,6 +12,8 @@ import { exchangeCode, logout, oauthCallback, requireSession, startAuth } from '
 import { finishUsage, reserveUsage } from './usage/limits';
 import { configuredCostBound } from './ai/budget';
 import { checkIssue } from './github/issue-check';
+import { cleanupExpiredData } from './maintenance';
+import { betaInformation } from './privacy';
 export const app = new Hono<{ Bindings: Env }>();
 app.use('*', async (c, next) => {
   const origin = c.req.header('Origin'); const local = c.env.ENVIRONMENT === 'development';
@@ -23,6 +25,8 @@ app.use('*', async (c, next) => {
 });
 app.use('/v1/*', bodyLimit({ maxSize: 64000, onError: c => c.json({ error: { code: 'INVALID_INPUT', userMessage: 'This request is too large.' } }, 413) }));
 app.get('/health', c => c.json({ name: 'Unforked', mode: c.env.MODE === 'live' ? 'live' : 'demo', configured: !!(c.env.AI_MODEL && c.env.GOOGLE_GENERATIVE_AI_API_KEY) }));
+app.get('/', c => c.text(betaInformation(c.env)));
+app.get('/privacy', c => c.text(betaInformation(c.env)));
 app.use('/auth/*', bodyLimit({ maxSize: 4000 }));
 app.post('/auth/start', async c => { const body = await c.req.json().catch(() => ({})) as any; if (typeof body.challenge !== 'string') throw new AppError('INVALID_INPUT', 'A sign-in challenge is required.'); return c.json(await startAuth(c.env, body.challenge, c.req.header('CF-Connecting-IP') || 'local')); });
 app.get('/auth/callback', async c => c.redirect(await oauthCallback(c.env, c.req.query('state') || '', c.req.query('code') || '')));
@@ -65,4 +69,9 @@ app.onError((e, c) => {
   if (error.retryAfterSeconds) c.header('Retry-After', String(error.retryAfterSeconds));
   return c.json({ error: { code: error.code, userMessage: error.message, retryAfterSeconds: error.retryAfterSeconds } }, error.status as any);
 });
-export default app;
+export default {
+  fetch: app.fetch,
+  async scheduled(event: { scheduledTime: number }, env: Env) {
+    await cleanupExpiredData(env, new Date(event.scheduledTime));
+  }
+};

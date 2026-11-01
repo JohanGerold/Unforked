@@ -1,6 +1,6 @@
 # Hosted setup
 
-The build is local and has not been deployed. Keep `ENVIRONMENT=production` in a hosted service. The local authentication bypass additionally requires a loopback request URL; never deploy development settings.
+The local build remains available. A separate demo beta is deployed; see [beta operations](beta-operations.md) for its actual configuration and remaining launch gates. Keep `ENVIRONMENT=production` in a hosted service. The local authentication bypass additionally requires a loopback request URL; never deploy development settings.
 
 ## Required configuration
 
@@ -36,6 +36,6 @@ The model adapter permits at most three calls and 3,000 generated tokens per act
 
 ## Retention and operations
 
-No raw prompts, profiles or repository text are written to D1. Sessions store hashed Unforked tokens, GitHub user IDs, encrypted GitHub tokens and expiry. OAuth state expires after ten minutes; expired rows are removed during subsequent sign-in activity. Usage reservations contain account ID, request ID, date, reserved allowance and outcome, and must be periodically pruned after the billing/audit retention window you disclose. The shipped code does not yet automate usage-record deletion.
+No raw prompts, profiles or repository text are written to D1. Sessions store hashed Unforked tokens, GitHub user IDs, encrypted GitHub tokens and expiry. OAuth state expires after ten minutes. The beta configuration adds an hourly cleanup for expired auth rows and usage dates at the 90-day boundary, while protecting current-month allowance accounting. Usage reservations contain account ID, request ID, date, reserved allowance and outcome. Beta membership uses numeric GitHub IDs and is enforced at exchange and every hosted live action.
 
-Before publishing, set a real support contact and privacy URL, choose a documented usage-record retention period, add its scheduled cleanup, and review `CHROMEWEBSTORE.md`. No public privacy or support URL has been invented by this project.
+The owner supplied the beta contact and its policy is served at `/privacy`; see `docs/privacy.md`. Verify the deployed cleanup, OAuth, live quality and CPU gates before inviting testers. Review `CHROMEWEBSTORE.md` before any later store release.
